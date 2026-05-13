@@ -8,6 +8,7 @@ import Sparkling
 import SDWebImage
 import SDWebImageWebPCoder
 import SparklingMethod
+import Sparkling_Media
 import SparklingMacro
 #if canImport(Sparkling_DebugTool)
 import Sparkling_DebugTool
@@ -25,6 +26,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         #endif
         SPKServiceRegister.registerAll()
         SPKExecuteAllPrepareBootTask()
+#if DEBUG
+        SparklingDebugTool.setup()
+#endif
         SPKKit.DIContainer.register(SPKTrackerService.self, scope: ServiceScope.transient) {
             SparklingGoTrackerService()
         }
