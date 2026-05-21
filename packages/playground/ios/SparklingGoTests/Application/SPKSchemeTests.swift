@@ -15,19 +15,27 @@ struct SPKSchemeTests {
     }
 
     @Test func resolverWithValidURL() {
-        let url = URL(string: "hybrid://lynxview?bundle=.%2Fmain.lynx.bundle")
+        let url = URL(string: "hybrid://lynxview_page?bundle=.%2Fmain.lynx.bundle")
         let context = SPKContext()
 
         let param = SPKScheme.resolver(withScheme: url, context: context, paramClass: SPKSchemeParam.self)
 
         #expect(param != nil)
-        #expect(param?.resolvedURL != nil)
-        // The resolvedURL may be encoded differently, so we check the scheme and host instead of exact equality
+        #expect(param?.engineType == .SPKHybridEngineTypeLynx)
         #expect(param?.resolvedURL?.scheme == "hybrid")
         #expect(param?.resolvedURL?.host == "hybrid")
-        // Verify the bundle parameter is preserved (may be URL encoded)
         let resolvedQuery = param?.resolvedURL?.query
         #expect(resolvedQuery?.contains("bundle") == true)
+    }
+
+    @Test func resolverWithLynxViewPageURLScheme() {
+        let url = URL(string: "hybrid://lynxview_page?url=http%3A%2F%2F127.0.0.1%3A5969%2Fmain.lynx.bundle")
+        let context = SPKContext()
+
+        let param = SPKScheme.resolver(withScheme: url, context: context, paramClass: SPKSchemeParam.self)
+
+        #expect(param != nil)
+        #expect(param?.engineType == .SPKHybridEngineTypeLynx)
     }
 
     @Test func resolverWithNilURL() {
@@ -39,7 +47,7 @@ struct SPKSchemeTests {
     }
 
     @Test func resolverWithNilContext() {
-        let url = URL(string: "hybrid://lynxview?bundle=.%2Fmain.lynx.bundle")
+        let url = URL(string: "hybrid://lynxview_page?bundle=.%2Fmain.lynx.bundle")
 
         let param = SPKScheme.resolver(withScheme: url, context: nil, paramClass: SPKSchemeParam.self)
 
@@ -47,18 +55,19 @@ struct SPKSchemeTests {
     }
 
     @Test func resolverWithQueryParameters() {
-        let url = URL(string: "hybrid://lynxview?bundle=.%2Fmain.lynx.bundle&title=Test&hide_nav_bar=true")
+        let url = URL(string: "hybrid://lynxview_page?bundle=.%2Fmain.lynx.bundle&title=Test&hide_nav_bar=true")
         let context = SPKContext()
 
         let param = SPKScheme.resolver(withScheme: url, context: context, paramClass: SPKSchemeParam.self)
 
         #expect(param != nil)
+        #expect(param?.engineType == .SPKHybridEngineTypeLynx)
         #expect(param?.title == "Test")
         #expect(param?.hideNavBar == true)
     }
 
     @Test func resolverWithExistingSchemeParams() {
-        let url = URL(string: "hybrid://lynxview?bundle=.%2Fmain.lynx.bundle&title=NewTitle")
+        let url = URL(string: "hybrid://lynxview_page?bundle=.%2Fmain.lynx.bundle&title=NewTitle")
         let context = SPKContext()
 
         // First, create an existing schemeParams in context
@@ -247,13 +256,13 @@ struct SPKContextTests {
     @Test func copyMethod() {
         let originalContext = SPKContext()
         // SPKContext doesn't have title property
-        originalContext.originURL = "hybrid://lynxview?bundle=.%2Fmain.lynx.bundle"
+        originalContext.originURL = "hybrid://lynxview_page?bundle=.%2Fmain.lynx.bundle"
 
         let copiedContext = originalContext.copy() as? SPKContext
 
         #expect(copiedContext != nil)
         // SPKContext doesn't have title property
-        #expect(copiedContext?.originURL == "hybrid://lynxview?bundle=.%2Fmain.lynx.bundle")
+        #expect(copiedContext?.originURL == "hybrid://lynxview_page?bundle=.%2Fmain.lynx.bundle")
         #expect(copiedContext !== originalContext)
     }
 

@@ -26,7 +26,7 @@ struct SPKViewTests {
 
     @Test func loadWithURL() {
         let view = SPKContainerView()
-        let urlString = "hybrid://lynxview?bundle=.%2Fmain.lynx.bundle"
+        let urlString = "hybrid://lynxview_page?bundle=.%2Fmain.lynx.bundle"
 
         view.load(withURL: urlString, nil, true)
 

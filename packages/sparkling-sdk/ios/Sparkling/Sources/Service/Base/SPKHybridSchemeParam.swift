@@ -41,10 +41,11 @@ public enum SPKHybridEngineType: Int {
 @objcMembers
 open class SPKHybridSchemeParam: NSObject {
 
-    /// Scheme identifier for Lynx view rendering.
+    /// All valid Lynx-engine host identifiers.
     ///
-    /// Used to identify URLs that should be rendered using the Lynx engine.
-    static let lynxViewScheme = "lynxview"
+    /// The first element (`"lynxview"`) is the canonical form used for normalization
+    /// in `resolveBundleStyle` and `resolveURLStyle`.
+    static let lynxViewSchemes: [String] = ["lynxview", "lynxview_page"]
 
     /// Scheme identifier for web view rendering.
     ///
@@ -173,9 +174,9 @@ open class SPKHybridSchemeParam: NSObject {
             innerScheme = self.resolveBundleStyle(toHybridScheme: orignalURL, queries: queries)
         }
 
-        if innerScheme?.host?.contains(Self.lynxViewScheme) == true {
+        if let host = innerScheme?.host, Self.lynxViewSchemes.contains(host) {
             param.engineType = .SPKHybridEngineTypeLynx
-        } else if innerScheme?.host?.contains(Self.webViewScheme) == true {
+        } else if innerScheme?.host == Self.webViewScheme {
             param.engineType = .SPKHybridEngineTypeWeb
         }
 
@@ -202,9 +203,9 @@ open class SPKHybridSchemeParam: NSObject {
         guard let url = url else {
             return .SPKHybridEngineTypeUnknown
         }
-        if url.host?.contains(Self.lynxViewScheme) == true {
+        if let host = url.host, Self.lynxViewSchemes.contains(host) {
             return self.canResolve(url: url) ? .SPKHybridEngineTypeLynx : .SPKHybridEngineTypeUnknown
-        } else if url.host?.contains(Self.webViewScheme) == true {
+        } else if url.host == Self.webViewScheme {
             return self.canResolve(url: url) ? .SPKHybridEngineTypeWeb : .SPKHybridEngineTypeUnknown
         }
         return .SPKHybridEngineTypeUnknown
@@ -248,14 +249,13 @@ open class SPKHybridSchemeParam: NSObject {
     }
 
     static public func resolveURLStyle(toHybridScheme originURL: URL?, queries: [String: String]?) -> URL? {
-        if originURL?.host?.contains("lynx") == true {
-            let url = queries?.spk.string(forKey: "url") ?? ""
+        if let host = originURL?.host, Self.lynxViewSchemes.contains(host) {
             var lynxQuery = queries
             lynxQuery?.removeValue(forKey: "url")
-            let resolved = URL.spk.url(string: "hybrid://lynxview", queryItems: lynxQuery)
+            let resolved = URL.spk.url(string: "hybrid://\(Self.lynxViewSchemes[0])", queryItems: lynxQuery)
             return resolved
-        } else if originURL?.host?.contains("webview") == true {
-            let baseUrl = String("hybrid://webview")
+        } else if originURL?.host == Self.webViewScheme {
+            let baseUrl = "hybrid://\(Self.webViewScheme)"
             let url = URL.spk.url(string: baseUrl, queryItems: queries)
             return url
         }
@@ -264,7 +264,7 @@ open class SPKHybridSchemeParam: NSObject {
 
     static public func resolveBundleStyle(toHybridScheme originURL: URL?, queries: [String: String]?) -> URL? {
         let bundle = queries?.spk.string(forKey: "bundle") ?? ""
-        let baseURL = "hybrid://lynxview?bundle=\(bundle)"
+        let baseURL = "hybrid://\(Self.lynxViewSchemes[0])?bundle=\(bundle)"
         var lynxQuery = queries ?? [:]
         lynxQuery.removeValue(forKey: "bundle")
         let url = URL.spk.url(string: baseURL, queryItems: lynxQuery)

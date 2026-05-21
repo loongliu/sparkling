@@ -27,7 +27,7 @@ enum DebugDevURLSupport {
             let source = storedDevURL(fallback: fallbackDevURL())
             return mainScheme(withSource: source)
         #else
-            return "hybrid://lynxview?bundle=.%2Fmain.lynx.bundle&hide_status_bar=1&hide_nav_bar=1"
+            return "hybrid://lynxview_page?bundle=.%2Fmain.lynx.bundle&hide_status_bar=1&hide_nav_bar=1"
         #endif
     }
 
@@ -40,12 +40,12 @@ enum DebugDevURLSupport {
             return mainScheme(withDebugURL: normalized)
         }
         let encodedBundle = normalized.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? normalized
-        return "hybrid://lynxview?bundle=\(encodedBundle)&hide_status_bar=1&hide_nav_bar=1"
+        return "hybrid://lynxview_page?bundle=\(encodedBundle)&hide_status_bar=1&hide_nav_bar=1"
     }
 
     static func mainScheme(withDebugURL url: String) -> String {
         let encodedURL = url.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? url
-        return "hybrid://lynxview?url=\(encodedURL)&hide_status_bar=1&hide_nav_bar=1"
+        return "hybrid://lynxview_page?url=\(encodedURL)&hide_status_bar=1&hide_nav_bar=1"
     }
 
     static func networkBundleURL(fromScheme scheme: String?) -> String? {
