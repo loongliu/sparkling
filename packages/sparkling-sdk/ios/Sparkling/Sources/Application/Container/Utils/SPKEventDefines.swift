@@ -30,7 +30,7 @@ public enum SPKEvent {
     /// This enum provides standardized key names for parameters that are
     /// frequently used across multiple event types within the framework.
     enum Common {
-        static let containerIdKey = "containerId"
+        static let containerIdKey = "containerID"
     }
 
     // MARK: - Theme Event

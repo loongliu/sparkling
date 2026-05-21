@@ -95,7 +95,7 @@ object SparklingUriParser {
      * Appends query keys from [mergedParams] that are not already present on [originUri].
      */
     @JvmStatic
-    fun appendExtraQueryToUri(
+    fun appendMissingQueryToUri(
         originUri: Uri,
         mergedParams: Map<String, String>,
     ): Uri {

@@ -77,8 +77,8 @@ open class SPKScheme: NSObject, SPKSchemeProtocol {
 
         parsedParams.update(withDictionary: extra)
 
-        extra?.updateValue(parsedParams.resolvedURL?.absoluteString ?? "", forKey: "resolvedURL")
-        extra?.updateValue(parsedParams.originURL?.absoluteString ?? "", forKey: "originURL")
+        extra?.updateValue(parsedParams.resolvedURL?.absoluteString ?? "", forKey: "resolvedUrl")
+        extra?.updateValue(parsedParams.originURL?.absoluteString ?? "", forKey: "originUrl")
 
         var newParams = parsedParams
 

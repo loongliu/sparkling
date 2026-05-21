@@ -139,39 +139,39 @@ open class SPKHybridSchemeParam: NSObject {
     /// scheme formats and automatically detects the engine type based on the URL structure.
     ///
     /// - Parameters:
-    ///   - orignalURL: The original scheme URL to resolve.
+    ///   - originURL: The original scheme URL to resolve.
     ///   - context: Optional hybrid context to update with resolved information.
     /// - Returns: A configured SPKHybridSchemeParam instance with resolved parameters.
-    public static func resolver(withScheme orignalURL: URL?, context: SPKHybridContext? = nil) -> SPKHybridSchemeParam {
-        if let customParam = Self.parseWithCustomSchemeParser(withScheme: orignalURL, context: context) {
+    public static func resolver(withScheme originURL: URL?, context: SPKHybridContext? = nil) -> SPKHybridSchemeParam {
+        if let customParam = Self.parseWithCustomSchemeParser(withScheme: originURL, context: context) {
             return customParam
         }
-        return Self.defaultResolver(withScheme: orignalURL, context: context)
+        return Self.defaultResolver(withScheme: originURL, context: context)
     }
 
-    public static func parseWithCustomSchemeParser(withScheme orignalURL: URL?, context: SPKHybridContext? = nil) -> SPKHybridSchemeParam? {
+    public static func parseWithCustomSchemeParser(withScheme originURL: URL?, context: SPKHybridContext? = nil) -> SPKHybridSchemeParam? {
         guard let parser = Self.customSchemeParser else {
             return nil
         }
-        guard let customParam = parser.parseScheme(orignalURL, context: context) else {
+        guard let customParam = parser.parseScheme(originURL, context: context) else {
             return nil
         }
         if customParam.originURL == nil {
-            customParam.originURL = orignalURL
+            customParam.originURL = originURL
         }
-        context?.originURL = orignalURL?.absoluteString
+        context?.originURL = originURL?.absoluteString
         return customParam
     }
 
-    public static func defaultResolver(withScheme orignalURL: URL?, context: SPKHybridContext? = nil) -> SPKHybridSchemeParam {
-        var queries = orignalURL?.spk.decodedQueryItems
+    public static func defaultResolver(withScheme originURL: URL?, context: SPKHybridContext? = nil) -> SPKHybridSchemeParam {
+        var queries = originURL?.spk.decodedQueryItems
         var param = self.init(withDictionary: queries)
         var innerScheme: URL? = nil
 
         if self.checkUrlStyle(inQueries: queries) {
-            innerScheme = self.resolveURLStyle(toHybridScheme: orignalURL, queries: queries)
+            innerScheme = self.resolveURLStyle(toHybridScheme: originURL, queries: queries)
         } else if self.checkBundleStyle(inQueries: queries) {
-            innerScheme = self.resolveBundleStyle(toHybridScheme: orignalURL, queries: queries)
+            innerScheme = self.resolveBundleStyle(toHybridScheme: originURL, queries: queries)
         }
 
         if let host = innerScheme?.host, Self.lynxViewSchemes.contains(host) {
@@ -186,8 +186,8 @@ open class SPKHybridSchemeParam: NSObject {
 
         let resolvedScheme = URL.spk.url(string: scheme)?.spk.merging(queries: dict, encode: true)
         param.resolvedURL = resolvedScheme
-        param.originURL = orignalURL
-        context?.originURL = orignalURL?.absoluteString
+        param.originURL = originURL
+        context?.originURL = originURL?.absoluteString
         return param
     }
 
