@@ -41,10 +41,11 @@ public enum SPKHybridEngineType: Int {
 @objcMembers
 open class SPKHybridSchemeParam: NSObject {
 
-    /// Scheme identifier for Lynx view rendering.
+    /// All valid Lynx-engine host identifiers.
     ///
-    /// Used to identify URLs that should be rendered using the Lynx engine.
-    static let lynxViewScheme = "lynxview"
+    /// The first element (`"lynxview"`) is the canonical form used for normalization
+    /// in `resolveBundleStyle` and `resolveURLStyle`.
+    static let lynxViewSchemes: [String] = ["lynxview", "lynxview_page"]
 
     /// Scheme identifier for web view rendering.
     ///
@@ -138,44 +139,44 @@ open class SPKHybridSchemeParam: NSObject {
     /// scheme formats and automatically detects the engine type based on the URL structure.
     ///
     /// - Parameters:
-    ///   - orignalURL: The original scheme URL to resolve.
+    ///   - originURL: The original scheme URL to resolve.
     ///   - context: Optional hybrid context to update with resolved information.
     /// - Returns: A configured SPKHybridSchemeParam instance with resolved parameters.
-    public static func resolver(withScheme orignalURL: URL?, context: SPKHybridContext? = nil) -> SPKHybridSchemeParam {
-        if let customParam = Self.parseWithCustomSchemeParser(withScheme: orignalURL, context: context) {
+    public static func resolver(withScheme originURL: URL?, context: SPKHybridContext? = nil) -> SPKHybridSchemeParam {
+        if let customParam = Self.parseWithCustomSchemeParser(withScheme: originURL, context: context) {
             return customParam
         }
-        return Self.defaultResolver(withScheme: orignalURL, context: context)
+        return Self.defaultResolver(withScheme: originURL, context: context)
     }
 
-    public static func parseWithCustomSchemeParser(withScheme orignalURL: URL?, context: SPKHybridContext? = nil) -> SPKHybridSchemeParam? {
+    public static func parseWithCustomSchemeParser(withScheme originURL: URL?, context: SPKHybridContext? = nil) -> SPKHybridSchemeParam? {
         guard let parser = Self.customSchemeParser else {
             return nil
         }
-        guard let customParam = parser.parseScheme(orignalURL, context: context) else {
+        guard let customParam = parser.parseScheme(originURL, context: context) else {
             return nil
         }
         if customParam.originURL == nil {
-            customParam.originURL = orignalURL
+            customParam.originURL = originURL
         }
-        context?.originURL = orignalURL?.absoluteString
+        context?.originURL = originURL?.absoluteString
         return customParam
     }
 
-    public static func defaultResolver(withScheme orignalURL: URL?, context: SPKHybridContext? = nil) -> SPKHybridSchemeParam {
-        var queries = orignalURL?.spk.decodedQueryItems
+    public static func defaultResolver(withScheme originURL: URL?, context: SPKHybridContext? = nil) -> SPKHybridSchemeParam {
+        var queries = originURL?.spk.decodedQueryItems
         var param = self.init(withDictionary: queries)
         var innerScheme: URL? = nil
 
         if self.checkUrlStyle(inQueries: queries) {
-            innerScheme = self.resolveURLStyle(toHybridScheme: orignalURL, queries: queries)
+            innerScheme = self.resolveURLStyle(toHybridScheme: originURL, queries: queries)
         } else if self.checkBundleStyle(inQueries: queries) {
-            innerScheme = self.resolveBundleStyle(toHybridScheme: orignalURL, queries: queries)
+            innerScheme = self.resolveBundleStyle(toHybridScheme: originURL, queries: queries)
         }
 
-        if innerScheme?.host?.contains(Self.lynxViewScheme) == true {
+        if let host = innerScheme?.host, Self.lynxViewSchemes.contains(host) {
             param.engineType = .SPKHybridEngineTypeLynx
-        } else if innerScheme?.host?.contains(Self.webViewScheme) == true {
+        } else if innerScheme?.host == Self.webViewScheme {
             param.engineType = .SPKHybridEngineTypeWeb
         }
 
@@ -185,8 +186,8 @@ open class SPKHybridSchemeParam: NSObject {
 
         let resolvedScheme = URL.spk.url(string: scheme)?.spk.merging(queries: dict, encode: true)
         param.resolvedURL = resolvedScheme
-        param.originURL = orignalURL
-        context?.originURL = orignalURL?.absoluteString
+        param.originURL = originURL
+        context?.originURL = originURL?.absoluteString
         return param
     }
 
@@ -202,9 +203,9 @@ open class SPKHybridSchemeParam: NSObject {
         guard let url = url else {
             return .SPKHybridEngineTypeUnknown
         }
-        if url.host?.contains(Self.lynxViewScheme) == true {
+        if let host = url.host, Self.lynxViewSchemes.contains(host) {
             return self.canResolve(url: url) ? .SPKHybridEngineTypeLynx : .SPKHybridEngineTypeUnknown
-        } else if url.host?.contains(Self.webViewScheme) == true {
+        } else if url.host == Self.webViewScheme {
             return self.canResolve(url: url) ? .SPKHybridEngineTypeWeb : .SPKHybridEngineTypeUnknown
         }
         return .SPKHybridEngineTypeUnknown
@@ -248,14 +249,13 @@ open class SPKHybridSchemeParam: NSObject {
     }
 
     static public func resolveURLStyle(toHybridScheme originURL: URL?, queries: [String: String]?) -> URL? {
-        if originURL?.host?.contains("lynx") == true {
-            let url = queries?.spk.string(forKey: "url") ?? ""
+        if let host = originURL?.host, Self.lynxViewSchemes.contains(host) {
             var lynxQuery = queries
             lynxQuery?.removeValue(forKey: "url")
-            let resolved = URL.spk.url(string: "hybrid://lynxview", queryItems: lynxQuery)
+            let resolved = URL.spk.url(string: "hybrid://\(Self.lynxViewSchemes[0])", queryItems: lynxQuery)
             return resolved
-        } else if originURL?.host?.contains("webview") == true {
-            let baseUrl = String("hybrid://webview")
+        } else if originURL?.host == Self.webViewScheme {
+            let baseUrl = "hybrid://\(Self.webViewScheme)"
             let url = URL.spk.url(string: baseUrl, queryItems: queries)
             return url
         }
@@ -264,7 +264,7 @@ open class SPKHybridSchemeParam: NSObject {
 
     static public func resolveBundleStyle(toHybridScheme originURL: URL?, queries: [String: String]?) -> URL? {
         let bundle = queries?.spk.string(forKey: "bundle") ?? ""
-        let baseURL = "hybrid://lynxview?bundle=\(bundle)"
+        let baseURL = "hybrid://\(Self.lynxViewSchemes[0])?bundle=\(bundle)"
         var lynxQuery = queries ?? [:]
         lynxQuery.removeValue(forKey: "bundle")
         let url = URL.spk.url(string: baseURL, queryItems: lynxQuery)

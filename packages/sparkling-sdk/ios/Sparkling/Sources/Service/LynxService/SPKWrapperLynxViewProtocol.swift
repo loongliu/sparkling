@@ -18,7 +18,7 @@ public protocol SPKLynxElement {
 /// layout modes, and metadata for loading and updating operations.
 @objc public class SPKLynxKitParams: NSObject, SPKHybridParams {
     /// Global properties to be shared across the Lynx runtime environment.
-    public var globalPropos: Any?
+    public var globalProps: Any?
 
     /// The hybrid context containing configuration and state information.
     public var context: SPKHybridContext?

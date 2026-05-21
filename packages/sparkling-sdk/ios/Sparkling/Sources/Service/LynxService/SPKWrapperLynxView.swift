@@ -479,6 +479,12 @@ extension SPKWrapperLynxView: LynxViewLifecycle {
     public func lynxView(_ view: LynxView!, didRecieveError error: (any Error)!) {
         DispatchQueue.spk.asyncMain { [weak self] in
             self?.lifeCycleDelegate?.view?(self, didReceiveError: error)
+            if let error = error as? NSError,
+                let params = self?.params as? SPKLynxKitParams,
+                error.code >= LynxErrorCodeLoadTemplate && error.code < LynxErrorCodeJavaScript
+            {
+                self?.lifeCycleDelegate?.view?(self, didLoadFailedWithURL: URL.spk.url(string: params.sourceUrl ?? ""), error: error)
+            }
         }
     }
 

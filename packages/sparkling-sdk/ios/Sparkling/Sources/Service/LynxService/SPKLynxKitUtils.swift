@@ -29,7 +29,7 @@ open class SPKLynxKitUtils: SPKKitUtils {
         var schemeParams = context?.schemeParams
         var lynxKitParams = SPKLynxKitParams()
         let extraParams = context?.schemeParams?.extra
-        lynxKitParams.globalPropos = context?.globalProps
+        lynxKitParams.globalProps = context?.globalProps
         lynxKitParams.context = context
         lynxKitParams.widthMode = context?.widthMode != nil ? context?.widthMode?.intValue as? LynxViewSizeMode : LynxViewSizeMode.exact
         lynxKitParams.heightMode = context?.heightMode != nil ? context?.heightMode?.intValue as? LynxViewSizeMode : LynxViewSizeMode.exact
@@ -82,16 +82,16 @@ open class SPKLynxKitUtils: SPKKitUtils {
     ///                     before final LynxTemplateData creation.
     /// - Returns: LynxTemplateData containing merged global properties.
     static func globalProps(withParams params: SPKLynxKitParams, onDictionaryParamsCreated rawParamsBlock: (([AnyHashable: Any]?) -> Void)? = nil) -> LynxTemplateData? {
-        var globalPropos = self.defaultGlobalProps(withParams: params)
+        var globalProps = self.defaultGlobalProps(withParams: params)
         if let rawParamsBlock = rawParamsBlock {
-            rawParamsBlock(globalPropos)
+            rawParamsBlock(globalProps)
         }
-        var _globalProps = LynxTemplateData.init(dictionary: globalPropos)
-        if let tempPropos = params.globalPropos as? [AnyHashable: Any] {
+        var _globalProps = LynxTemplateData.init(dictionary: globalProps)
+        if let tempPropos = params.globalProps as? [AnyHashable: Any] {
             var dict = _globalProps?.dictionary()
             dict?.merge(tempPropos, uniquingKeysWith: { _, new in new })
             _globalProps = LynxTemplateData.init(dictionary: dict)
-        } else if let tempProps = params.globalPropos as? LynxTemplateData {
+        } else if let tempProps = params.globalProps as? LynxTemplateData {
             _globalProps?.update(with: tempProps)
         }
         return _globalProps
@@ -106,16 +106,16 @@ open class SPKLynxKitUtils: SPKKitUtils {
     /// - Parameter params: The Lynx kit parameters containing context and query data.
     /// - Returns: Dictionary containing default global properties with Lynx-specific additions.
     private static func defaultGlobalProps(withParams params: SPKLynxKitParams) -> [AnyHashable: Any]? {
-        var globalPropos = SPKGlobalPropsUtils.defaultGlobalProps()
+        var globalProps = SPKGlobalPropsUtils.defaultGlobalProps()
         let queryItems = params.queryItems ?? [:]
 
-        globalPropos.updateValue(LynxVersion.versionString() ?? "", forKey: "lynxSdkVersion")
-        globalPropos.updateValue(SPKVersion.SPKVersion(), forKey: "sparklingVersion")
-        globalPropos.updateValue(queryItems, forKey: "queryItems")
-        globalPropos.updateValue(params.context?.originURL ?? "", forKey: "originUrl")
-        globalPropos.updateValue(params.context?.fullURL ?? params.context?.originURL ?? "", forKey: "fullUrl")
+        globalProps.updateValue(LynxVersion.versionString() ?? "", forKey: "lynxSdkVersion")
+        globalProps.updateValue(SPKVersion.SPKVersion(), forKey: "sparklingVersion")
+        globalProps.updateValue(queryItems, forKey: "queryItems")
+        globalProps.updateValue(params.context?.originURL ?? "", forKey: "originUrl")
+        globalProps.updateValue(params.context?.fullURL ?? params.context?.originURL ?? "", forKey: "fullUrl")
 
-        return globalPropos
+        return globalProps
     }
 
     /// Merge priority aligned with Android `parseQueryMap` (no iOS `Bundle` layer): `extra` then URL (`schemeParams.extra`). `context.queryItems` is ignored here.

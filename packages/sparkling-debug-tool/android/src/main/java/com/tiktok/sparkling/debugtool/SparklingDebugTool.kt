@@ -26,7 +26,7 @@ object SparklingDebugTool {
         // service picks them up during initialization.
         LynxDevToolService.INSTANCE.setLynxDebugPresetValue(true)
         LynxDevToolService.INSTANCE.setLogBoxPresetValue(true)
-        LynxDevToolService.INSTANCE.setLoadJsBridge(true)
+        LynxDevToolService.INSTANCE.setLoadQJSBridge(true)
 
         LynxServiceCenter.inst().registerService(LynxDevToolService.INSTANCE)
         LynxEnv.inst().enableLynxDebug(true)

@@ -216,7 +216,7 @@ struct SPKRouterTests {
     }
 
     @Test func contextOriginURL() {
-        let url = "hybrid://lynxview?bundle=.%2Fmain.lynx.bundle"
+        let url = "hybrid://lynxview_page?bundle=.%2Fmain.lynx.bundle"
         let context = SPKContext()
         let navigationController = UINavigationController()
 

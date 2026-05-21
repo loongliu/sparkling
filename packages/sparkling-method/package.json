@@ -18,7 +18,7 @@
     "build": "tsc && node -e \"require('fs').copyFileSync('src/typing.d.ts', 'dist/typing.d.ts')\""
   },
   "devDependencies": {
-    "@lynx-js/types": "3.6.0",
+    "@lynx-js/types": "3.7.0",
     "typescript": "^5.8.3"
   },
   "license": "Apache-2.0"

@@ -14,7 +14,7 @@ import Lynx
 @objc
 public protocol SPKHybridParams {
     /// Global properties dictionary containing device and environment information.
-    var globalPropos: Any? { set get }
+    var globalProps: Any? { set get }
 
     /// The hybrid context containing configuration and state information.
     var context: SPKHybridContext? { set get }

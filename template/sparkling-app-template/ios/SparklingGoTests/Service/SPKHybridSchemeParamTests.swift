@@ -113,13 +113,19 @@ struct SPKHybridSchemeParamTests {
     // MARK: - Engine Type Tests
 
     @Test func testEngineTypeForLynxUrl() async throws {
-        let url = URL(string: "https://lynxview.com?url=https://target.com")!
+        let url = URL(string: "hybrid://lynxview_page?url=https://target.com")!
+        let engineType = SPKHybridSchemeParam.engineType(withURL: url)
+        #expect(engineType == .SPKHybridEngineTypeLynx)
+    }
+
+    @Test func testEngineTypeForLynxViewPageUrl() async throws {
+        let url = URL(string: "hybrid://lynxview_page?bundle=test.bundle")!
         let engineType = SPKHybridSchemeParam.engineType(withURL: url)
         #expect(engineType == .SPKHybridEngineTypeLynx)
     }
 
     @Test func testEngineTypeForWebviewUrl() async throws {
-        let url = URL(string: "https://webview.com?url=https://target.com")!
+        let url = URL(string: "hybrid://webview?url=https://target.com")!
         let engineType = SPKHybridSchemeParam.engineType(withURL: url)
         #expect(engineType == .SPKHybridEngineTypeWeb)
     }
@@ -138,7 +144,7 @@ struct SPKHybridSchemeParamTests {
     // MARK: - Resolver Tests
 
     @Test func testResolverWithLynxUrl() async throws {
-        let url = URL(string: "https://lynx.com?url=https://target.com&param1=value1")!
+        let url = URL(string: "hybrid://lynxview_page?url=https://target.com&param1=value1")!
         let result = SPKHybridSchemeParam.resolver(withScheme: url)
 
         #expect(result.originURL == url)
@@ -149,7 +155,7 @@ struct SPKHybridSchemeParamTests {
     }
 
     @Test func testResolverWithWebviewUrl() async throws {
-        let url = URL(string: "https://webview.com?url=https://target.com&param1=value1")!
+        let url = URL(string: "hybrid://webview?url=https://target.com&param1=value1")!
         let result = SPKHybridSchemeParam.resolver(withScheme: url)
 
         #expect(result.originURL == url)
@@ -160,7 +166,7 @@ struct SPKHybridSchemeParamTests {
     }
 
     @Test func testResolverWithBundleStyle() async throws {
-        let url = URL(string: "https://lynx.com?bundle=test.bundle&param1=value1")!
+        let url = URL(string: "hybrid://lynxview_page?bundle=test.bundle&param1=value1")!
         let result = SPKHybridSchemeParam.resolver(withScheme: url)
 
         #expect(result.originURL == url)
