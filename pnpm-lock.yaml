@@ -131,7 +131,7 @@ importers:
         specifier: ^0.13.3
         version: 0.13.6(@rspack/core@1.7.11(@swc/helpers@0.5.21))(typescript@5.9.3)(webpack@5.105.0)
       '@lynx-js/types':
-        specifier: ^3.6.0
+        specifier: ^3.7.0
         version: 3.7.0
       '@rsbuild/core':
         specifier: 1.7.2
@@ -215,8 +215,8 @@ importers:
   packages/sparkling-method:
     devDependencies:
       '@lynx-js/types':
-        specifier: 3.6.0
-        version: 3.6.0
+        specifier: 3.7.0
+        version: 3.7.0
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
@@ -272,8 +272,8 @@ importers:
   packages/sparkling-types:
     devDependencies:
       '@lynx-js/types':
-        specifier: 3.6.0
-        version: 3.6.0
+        specifier: 3.7.0
+        version: 3.7.0
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
@@ -327,7 +327,7 @@ importers:
         specifier: ^0.13.3
         version: 0.13.6(@rspack/core@1.7.11(@swc/helpers@0.5.21))(typescript@5.9.3)(webpack@5.105.0)
       '@lynx-js/types':
-        specifier: ^3.6.0
+        specifier: ^3.7.0
         version: 3.7.0
       '@testing-library/jest-dom':
         specifier: ^6.9.1
@@ -999,9 +999,6 @@ packages:
   '@lynx-js/template-webpack-plugin@0.10.5':
     resolution: {integrity: sha512-2wl6BM2dfWs2W++FLeGjhh1z5wgUdhrITZ9pXteEXoZXDx6/28+mpaLFKUX2/Q13tUgjRXI7IfZKBNCwUGe5Gg==}
     engines: {node: '>=18'}
-
-  '@lynx-js/types@3.6.0':
-    resolution: {integrity: sha512-nNCuFP5Cpd7X/D3X7JsQLYkiIUsr6iTsRpqSz4swUdlNpK64Xt9epdjkqxbruuUqplFFmkhjThjWN4Bc8uZNWQ==}
 
   '@lynx-js/types@3.7.0':
     resolution: {integrity: sha512-VEcz5HBJ8m938In1VJj2phR06cWyT0Tx+HnwBJrPINiuWPjN9YfrPl1lX87XWr3eMDhKZY+6F+5eFpJ7JFgjXw==}
@@ -6163,10 +6160,6 @@ snapshots:
     transitivePeerDependencies:
       - '@lynx-js/lynx-core'
       - tslib
-
-  '@lynx-js/types@3.6.0':
-    dependencies:
-      csstype: 3.1.3
 
   '@lynx-js/types@3.7.0':
     dependencies:

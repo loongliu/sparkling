@@ -17,7 +17,7 @@
     "@lynx-js/types": ">=3.0.0"
   },
   "devDependencies": {
-    "@lynx-js/types": "3.6.0",
+    "@lynx-js/types": "3.7.0",
     "typescript": "^5.8.3"
   },
   "license": "Apache-2.0"
