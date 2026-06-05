@@ -9,6 +9,7 @@ import android.view.View
 import android.webkit.WebView
 import com.tiktok.sparkling.method.registry.core.BridgePlatformType
 import com.tiktok.sparkling.method.registry.api.SparklingBridge
+import com.tiktok.sparkling.method.registry.api.SparklingMethodInvocationCenter
 import com.lynx.tasm.LynxBackgroundRuntime
 import com.lynx.tasm.LynxBackgroundRuntimeOptions
 import com.lynx.tasm.LynxView
@@ -126,6 +127,11 @@ internal class InnerBridge {
         event: String,
         data: JSONObject?,
     ) {
+        SparklingMethodInvocationCenter.notifyNativeToJsEvent(
+            name = event,
+            params = data,
+            containerId = mBridgeContext.containerId,
+        )
         mBridgeContext.monitor.forEach {
             runCatching {
                 it.onBridgeEvent(event, data)
@@ -142,6 +148,11 @@ internal class InnerBridge {
         event: String,
         data: JSONObject?,
     ) {
+        SparklingMethodInvocationCenter.notifyNativeToJsEvent(
+            name = event,
+            params = data,
+            containerId = mBridgeContext.containerId,
+        )
         mBridgeContext.monitor.forEach {
             runCatching {
                 it.onBridgeEvent(event, data)
