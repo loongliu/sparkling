@@ -33,7 +33,9 @@ TEMPLATE_DIR = REPO_ROOT / "template" / "sparkling-app-template"
 CLI_DIR = REPO_ROOT / "packages" / "create-sparkling-app"
 CLI_ENTRY = CLI_DIR / "dist" / "index.js"
 IOS_PODS_CONFIG = REPO_ROOT / "scripts" / "ios_pods.json"
-COCOAPODS_CDN_BASE = "https://cdn.cocoapods.org/Specs"
+COCOAPODS_USER_AGENT = "CocoaPods/1.16.2"
+COCOAPODS_CDN_ROOT = "https://cdn.cocoapods.org"
+COCOAPODS_CDN_BASE = f"{COCOAPODS_CDN_ROOT}/Specs"
 
 # npm packages the scaffolded project installs at the release version.
 NPM_PACKAGES = [
@@ -103,21 +105,46 @@ def http_ok(url):
         return False
 
 
-def read_json_url(url):
+def read_url(url):
     req = urllib.request.Request(
         url,
-        headers={"User-Agent": "CocoaPods/1.16.2"},
+        headers={"User-Agent": COCOAPODS_USER_AGENT},
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+        return resp.read().decode("utf-8")
+
+
+def read_json_url(url):
+    return json.loads(read_url(url))
+
+
+def cocoapods_cdn_shard(pod):
+    digest = hashlib.md5(pod.encode("utf-8")).hexdigest()
+    return digest[0], digest[1], digest[2]
 
 
 def cocoapods_cdn_spec_url(pod, version):
-    digest = hashlib.md5(pod.encode("utf-8")).hexdigest()
-    return f"{COCOAPODS_CDN_BASE}/{digest[0]}/{digest[1]}/{digest[2]}/{pod}/{version}/{pod}.podspec.json"
+    shard = cocoapods_cdn_shard(pod)
+    return f"{COCOAPODS_CDN_BASE}/{shard[0]}/{shard[1]}/{shard[2]}/{pod}/{version}/{pod}.podspec.json"
 
 
-def cocoapods_cdn_spec_ready(pod, version, fetch_json=read_json_url):
+def cocoapods_cdn_versions_url(pod):
+    shard = cocoapods_cdn_shard(pod)
+    return f"{COCOAPODS_CDN_ROOT}/all_pods_versions_{shard[0]}_{shard[1]}_{shard[2]}.txt"
+
+
+def cocoapods_cdn_index_has_version(index_text, pod, version):
+    prefix = f"{pod}/"
+    for line in index_text.splitlines():
+        line = line.strip()
+        if not line.startswith(prefix):
+            continue
+        versions = line.split("/")[1:]
+        return version in versions
+    return False
+
+
+def cocoapods_cdn_spec_ready(pod, version, fetch_json=read_json_url, fetch_text=read_url):
     url = cocoapods_cdn_spec_url(pod, version)
     try:
         spec = fetch_json(url)
@@ -139,7 +166,16 @@ def cocoapods_cdn_spec_ready(pod, version, fetch_json=read_json_url):
         if missing_subspecs:
             return False, f"{pod} CDN spec missing subspec(s): {', '.join(missing_subspecs)}"
 
-    return True, f"{pod} {version} CDN spec ready"
+    versions_url = cocoapods_cdn_versions_url(pod)
+    try:
+        versions_index = fetch_text(versions_url)
+    except Exception as err:
+        return False, f"{pod} CDN versions index unavailable at {versions_url}: {err}"
+
+    if not cocoapods_cdn_index_has_version(versions_index, pod, version):
+        return False, f"{pod} CDN versions index missing {version} at {versions_url}"
+
+    return True, f"{pod} {version} CDN spec and versions index ready"
 
 
 # ──────────────────────────────────────────────────────────────

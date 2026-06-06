@@ -50,6 +50,12 @@ class CocoaPodsCdnTest(unittest.TestCase):
             "https://cdn.cocoapods.org/Specs/0/e/8/SparklingMethod/2.1.0-rc.26/SparklingMethod.podspec.json",
         )
 
+    def test_cocoapods_cdn_versions_url_uses_md5_sharded_path(self):
+        self.assertEqual(
+            verify_template.cocoapods_cdn_versions_url("SparklingMethod"),
+            "https://cdn.cocoapods.org/all_pods_versions_0_e_8.txt",
+        )
+
     def test_cdn_spec_ready_requires_template_sparkling_method_subspecs(self):
         spec_json = {
             "name": "SparklingMethod",
@@ -65,10 +71,33 @@ class CocoaPodsCdnTest(unittest.TestCase):
         ready, reason = verify_template.cocoapods_cdn_spec_ready(
             "SparklingMethod",
             "2.1.0-rc.26",
-            lambda _url: spec_json,
+            fetch_json=lambda _url: spec_json,
+            fetch_text=lambda _url: "SparklingMethod/2.1.0-rc.25/2.1.0-rc.26\n",
         )
 
         self.assertTrue(ready, reason)
+
+    def test_cdn_spec_ready_rejects_missing_version_index(self):
+        spec_json = {
+            "name": "SparklingMethod",
+            "version": "2.1.0-rc.29",
+            "subspecs": [
+                {"name": "Core"},
+                {"name": "Lynx"},
+                {"name": "DIProvider"},
+                {"name": "Debug"},
+            ],
+        }
+
+        ready, reason = verify_template.cocoapods_cdn_spec_ready(
+            "SparklingMethod",
+            "2.1.0-rc.29",
+            fetch_json=lambda _url: spec_json,
+            fetch_text=lambda _url: "SparklingMethod/2.1.0-rc.27/2.1.0-rc.28\n",
+        )
+
+        self.assertFalse(ready)
+        self.assertIn("versions index missing 2.1.0-rc.29", reason)
 
     def test_cdn_spec_ready_rejects_stale_sparkling_method_subspecs(self):
         spec_json = {
@@ -83,7 +112,8 @@ class CocoaPodsCdnTest(unittest.TestCase):
         ready, reason = verify_template.cocoapods_cdn_spec_ready(
             "SparklingMethod",
             "2.1.0-rc.26",
-            lambda _url: spec_json,
+            fetch_json=lambda _url: spec_json,
+            fetch_text=lambda _url: "SparklingMethod/2.1.0-rc.26\n",
         )
 
         self.assertFalse(ready)
