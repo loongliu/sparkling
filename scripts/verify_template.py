@@ -54,6 +54,8 @@ REQUIRED_CDN_SUBSPECS = {
     "SparklingMethod": {"Core", "Lynx", "DIProvider", "Debug"},
 }
 
+IOS_VERIFY_RUN_COMMAND = ["pnpm", "exec", "sparkling-app-cli", "run:ios", "--copy", "--pod-repo-update"]
+
 NAMESPACE = "com.sparkling.templateverify"
 
 # Build retry: preserves the release pipeline's original timeout-retry logic.
@@ -314,10 +316,9 @@ def verify_ios(version, workspace_dir, podfile_lock_out):
             log(f"Removing scaffolded Podfile.lock: {podfile_lock}")
             podfile_lock.unlink()
         run(["pnpm", "install"], cwd=project)
-        # Force CocoaPods to refresh specs during install. `pod repo update`
-        # alone can update a stale local trunk repo while `pod install` still
-        # misses versions that are already visible on the CDN.
-        run(["pnpm", "run:ios", "--", "--pod-repo-update"], cwd=project)
+        # Force CocoaPods to refresh specs during install. Call the CLI
+        # directly so pnpm script forwarding cannot place the flag after `--`.
+        run(IOS_VERIFY_RUN_COMMAND, cwd=project)
 
     section("Verifying template on iOS (pnpm run:ios)")
     retry("verify-template-ios", BUILD_ATTEMPTS["ios"], attempt)

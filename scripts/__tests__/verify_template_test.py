@@ -13,6 +13,13 @@ spec.loader.exec_module(verify_template)
 
 
 class CocoaPodsCdnTest(unittest.TestCase):
+    def test_ios_verify_invokes_cli_with_pod_repo_update_flag(self):
+        self.assertEqual(
+            verify_template.IOS_VERIFY_RUN_COMMAND,
+            ["pnpm", "exec", "sparkling-app-cli", "run:ios", "--copy", "--pod-repo-update"],
+        )
+        self.assertNotIn("--", verify_template.IOS_VERIFY_RUN_COMMAND)
+
     def test_read_json_url_uses_cocoapods_user_agent(self):
         captured = {}
 
