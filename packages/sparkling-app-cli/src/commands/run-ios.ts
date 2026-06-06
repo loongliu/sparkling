@@ -17,6 +17,7 @@ export interface RunIosOptions {
   skipCopy?: boolean;
   device?: string;
   skipPodInstall?: boolean;
+  podRepoUpdate?: boolean;
 }
 
 interface SimulatorDevice {
@@ -177,7 +178,7 @@ async function ensureBundleInstall(gemfileDir: string): Promise<boolean> {
   }
 }
 
-async function installPods(podfilePath: string): Promise<void> {
+async function installPods(podfilePath: string, options: { repoUpdate?: boolean } = {}): Promise<void> {
   const podDir = path.dirname(podfilePath);
   const gemfile = findNearestGemfile(podDir);
   if (!gemfile) {
@@ -198,10 +199,10 @@ async function installPods(podfilePath: string): Promise<void> {
 
   try {
     const env = { ...(gemfile ? { BUNDLE_GEMFILE: gemfile } : {}) };
-    await runCommand('bundle', ['exec', 'pod', 'install'], { cwd: podDir, env });
+    await runCommand('bundle', ['exec', 'pod', 'install', ...(options.repoUpdate ? ['--repo-update'] : [])], { cwd: podDir, env });
   } catch (error) {
     throw new Error(
-      `bundle exec pod install failed: ${String(error)}. Older CocoaPods (<=1.11) cannot parse PBXFileSystemSynchronizedRootGroup; run \`bundle install\` to pick up the pinned version.`,
+      `bundle exec pod install${options.repoUpdate ? ' --repo-update' : ''} failed: ${String(error)}. Older CocoaPods (<=1.11) cannot parse PBXFileSystemSynchronizedRootGroup; run \`bundle install\` to pick up the pinned version.`,
     );
   }
 }
@@ -283,7 +284,7 @@ export async function runIos(options: RunIosOptions): Promise<void> {
   const devPort = resolveDevServerPort(config);
   await ensureDevServerRunning(options.cwd, devPort);
   if (isVerboseEnabled()) {
-    verboseLog(`run:ios options -> skipCopy: ${options.skipCopy === true}, device: ${options.device ?? '(auto)'}, skipPodInstall: ${options.skipPodInstall === true}, devPort: ${devPort}`);
+    verboseLog(`run:ios options -> skipCopy: ${options.skipCopy === true}, device: ${options.device ?? '(auto)'}, skipPodInstall: ${options.skipPodInstall === true}, podRepoUpdate: ${options.podRepoUpdate === true}, devPort: ${devPort}`);
   }
   const preferredDevice = options.device ?? process.env.SPARKLING_IOS_SIMULATOR;
   const device = pickSimulator(preferredDevice);
@@ -305,8 +306,8 @@ export async function runIos(options: RunIosOptions): Promise<void> {
     if (options.skipPodInstall) {
       console.log(ui.tip('Skipping pod install (per flag). Run it manually if pods are out of date.'));
     } else {
-      console.log(ui.info('Running bundle exec pod install...'));
-      await installPods(podfilePath);
+      console.log(ui.info(`Running bundle exec pod install${options.podRepoUpdate ? ' --repo-update' : ''}...`));
+      await installPods(podfilePath, { repoUpdate: options.podRepoUpdate });
     }
   }
 
@@ -343,7 +344,7 @@ export async function runIos(options: RunIosOptions): Promise<void> {
   let workspacePath = resolveWorkspacePath(options.cwd);
   if (!workspacePath && hasPodfile && !options.skipPodInstall) {
     console.log(ui.info('Installing iOS pods to generate workspace...'));
-    await installPods(podfilePath);
+    await installPods(podfilePath, { repoUpdate: options.podRepoUpdate });
     workspacePath = resolveWorkspacePath(options.cwd);
   }
 

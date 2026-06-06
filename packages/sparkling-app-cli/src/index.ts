@@ -123,6 +123,7 @@ program
   .option('--skip-copy', 'Skip copying assets to native shells')
   .option('--device <nameOrId>', 'Simulator name or UDID to run')
   .option('--skip-pod-install', 'Skip running pod install before building iOS')
+  .option('--pod-repo-update', 'Run pod install with --repo-update')
   .action(async (opts) => {
     const cwd = process.cwd();
     const skipCopy = resolveSkipCopy(opts);
@@ -131,6 +132,7 @@ program
       skipCopy,
       device: opts.device,
       skipPodInstall: opts.skipPodInstall,
+      podRepoUpdate: opts.podRepoUpdate,
     });
   });
 
