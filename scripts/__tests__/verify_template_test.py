@@ -1,6 +1,7 @@
 import importlib.util
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -12,6 +13,30 @@ spec.loader.exec_module(verify_template)
 
 
 class CocoaPodsCdnTest(unittest.TestCase):
+    def test_read_json_url_uses_cocoapods_user_agent(self):
+        captured = {}
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, _exc_type, _exc_value, _traceback):
+                return False
+
+            def read(self):
+                return b'{"ok": true}'
+
+        def fake_urlopen(req, timeout):
+            captured["user_agent"] = req.get_header("User-agent")
+            captured["timeout"] = timeout
+            return Response()
+
+        with patch.object(verify_template.urllib.request, "urlopen", fake_urlopen):
+            self.assertEqual(verify_template.read_json_url("https://example.test/spec.json"), {"ok": True})
+
+        self.assertEqual(captured["user_agent"], "CocoaPods/1.16.2")
+        self.assertEqual(captured["timeout"], 30)
+
     def test_cocoapods_cdn_spec_url_uses_md5_sharded_path(self):
         self.assertEqual(
             verify_template.cocoapods_cdn_spec_url("SparklingMethod", "2.1.0-rc.26"),

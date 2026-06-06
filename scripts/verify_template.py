@@ -102,7 +102,11 @@ def http_ok(url):
 
 
 def read_json_url(url):
-    with urllib.request.urlopen(url, timeout=30) as resp:
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "CocoaPods/1.16.2"},
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
