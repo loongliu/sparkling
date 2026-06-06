@@ -64,6 +64,9 @@ function createMethodModule(
     iosClassName?: string;
     androidPackage?: string;
     androidClassName?: string;
+    androidMavenDependency?: string;
+    devtool?: boolean;
+    packageVersion?: string;
     methods?: string[];
   } = {},
 ): string {
@@ -78,21 +81,30 @@ function createMethodModule(
   // Write a minimal build.gradle.kts
   fs.writeFileSync(path.join(moduleDir, 'android', 'build.gradle.kts'), 'plugins {}');
 
+  fs.writeFileSync(path.join(moduleDir, 'package.json'), JSON.stringify({
+    name,
+    version: opts.packageVersion ?? '1.0.0',
+  }, null, 2));
+
   const config: Record<string, unknown> = { name };
+  if (opts.devtool) {
+    config.devtool = true;
+  }
   if (opts.methods?.length) {
     config.methods = Object.fromEntries(opts.methods.map(method => [method, {}]));
   }
-  if (opts.iosModuleName || opts.iosClassName) {
+  if (opts.iosModuleName || opts.iosClassName || opts.devtool) {
     config.ios = {
       moduleName: opts.iosModuleName ?? name,
       className: opts.iosClassName ?? `${name}Module`,
       podspecPath: path.join(moduleDir, 'ios', `${name}.podspec`),
     };
   }
-  if (opts.androidPackage || opts.androidClassName) {
+  if (opts.androidPackage || opts.androidClassName || opts.androidMavenDependency) {
     config.android = {
       packageName: opts.androidPackage ?? `com.sparkling.${name}`,
       className: opts.androidClassName ?? `${name}Module`,
+      ...(opts.androidMavenDependency ? { mavenDependency: opts.androidMavenDependency } : {}),
     };
   }
 
@@ -265,6 +277,76 @@ describe('autolink', () => {
       expect(registry).toContain('"com.tiktok.sparkling.method.storage.removeItem.StorageRemoveItemMethod"');
     });
 
+    it('uses a remote Maven dependency for Android devtool modules', async () => {
+      fs.removeSync(path.join(cwd, 'node_modules', 'sparkling-navigation'));
+      createMethodModule(cwd, 'sparkling-debug-tool', {
+        devtool: true,
+        androidPackage: 'com.tiktok.sparkling.debugtool',
+        androidClassName: 'SparklingDebugTool',
+        androidMavenDependency: 'com.tiktok.sparkling:sparkling-debug-tool',
+        packageVersion: '9.9.9-rc.1',
+      });
+
+      await autolink({ cwd, platform: 'android' });
+
+      const settings = fs.readFileSync(path.join(cwd, 'android', 'settings.gradle.kts'), 'utf8');
+      expect(settings).not.toContain('sparkling-debug-tool');
+
+      const gradle = fs.readFileSync(path.join(cwd, 'android', 'app', 'build.gradle.kts'), 'utf8');
+      expect(gradle).toContain('debugImplementation("com.tiktok.sparkling:sparkling-debug-tool:9.9.9-rc.1")');
+      expect(gradle).not.toContain('project(":sparkling-debug-tool")');
+
+      const registryPath = path.join(cwd, 'android', 'app', 'src', 'main', 'java', 'com', 'test', 'app', 'SparklingAutolink.kt');
+      const registry = fs.readFileSync(registryPath, 'utf8');
+      expect(registry).not.toContain('sparkling-debug-tool');
+    });
+
+    it('preserves fixed remote Android debug-tool deps when the npm package is not installed', async () => {
+      const staleSettingsBlock = [
+        '// BEGIN SPARKLING AUTOLINK',
+        'val sparklingAutolinkProjects =',
+        '    listOf<Pair<String, java.io.File>>(',
+        '        "sparkling-navigation" to file("../node_modules/sparkling-navigation/android"),',
+        '        "sparkling-debug-tool" to file("../node_modules/sparkling-debug-tool/android"),',
+        '    )',
+        'sparklingAutolinkProjects.forEach { (name, dir) ->',
+        '    include(":$name")',
+        '    project(":$name").projectDir = dir',
+        '}',
+        '// END SPARKLING AUTOLINK',
+      ].join('\n');
+      const fixedRemoteDependency = '    debugImplementation("com.tiktok.sparkling:sparkling-debug-tool:9.9.9-rc.1")';
+      const staleDependenciesBlock = [
+        fixedRemoteDependency,
+        '    // BEGIN SPARKLING AUTOLINK',
+        '    implementation(project(":sparkling-navigation"))',
+        '    debugImplementation(project(":sparkling-debug-tool"))',
+        '    // END SPARKLING AUTOLINK',
+      ].join('\n');
+
+      scaffoldProject(cwd, {
+        settingsContent: settingsTemplate(staleSettingsBlock),
+        buildGradleContent: buildGradleTemplate(staleDependenciesBlock),
+      });
+      createMethodModule(cwd, 'sparkling-navigation', {
+        iosModuleName: 'Router',
+        iosClassName: 'RouterModule',
+        androidPackage: 'com.sparkling.navigation',
+        androidClassName: 'NavigationModule',
+      });
+
+      await autolink({ cwd, platform: 'android' });
+
+      const settings = fs.readFileSync(path.join(cwd, 'android', 'settings.gradle.kts'), 'utf8');
+      expect(settings).toContain('"sparkling-navigation"');
+      expect(settings).not.toContain('sparkling-debug-tool');
+
+      const gradle = fs.readFileSync(path.join(cwd, 'android', 'app', 'build.gradle.kts'), 'utf8');
+      expect(gradle).toContain(fixedRemoteDependency.trim());
+      expect(gradle).toContain('project(":sparkling-navigation")');
+      expect(gradle).not.toContain('project(":sparkling-debug-tool")');
+    });
+
     it('returns the discovered module', async () => {
       const modules = await autolink({ cwd, platform: 'all' });
       expect(modules).toHaveLength(1);
@@ -376,6 +458,40 @@ describe('autolink', () => {
       expect(podfile).toContain('# BEGIN SPARKLING AUTOLINK');
       expect(podfile).toContain('# No Sparkling methods found');
       expect(podfile).not.toContain('sparkling-navigation');
+    });
+
+    it('preserves fixed remote iOS debug-tool pods when the npm package is not installed', async () => {
+      const podfileContent = [
+        "platform :ios, '12.0'",
+        '',
+        'def sparkling_methods_dep',
+        '  # BEGIN SPARKLING AUTOLINK',
+        "  pod 'sparkling-navigation', :path => '../node_modules/sparkling-navigation/ios'",
+        '  # END SPARKLING AUTOLINK',
+        'end',
+        '',
+        'def sparkling_devtool',
+        "  pod 'Sparkling-DebugTool', '9.9.9-rc.1'",
+        '  # BEGIN SPARKLING AUTOLINK',
+        "  pod 'sparkling-debug-tool', :path => '../node_modules/sparkling-debug-tool/ios'",
+        '  # END SPARKLING AUTOLINK',
+        "  pod 'DebugRouter', '5.0.15'",
+        'end',
+        '',
+        "target 'SparklingGoInHouse' do",
+        '  sparkling_devtool',
+        'end',
+      ].join('\n');
+      scaffoldProject(cwd, { podfileContent });
+
+      await autolink({ cwd, platform: 'ios' });
+
+      const podfile = fs.readFileSync(path.join(cwd, 'ios', 'Podfile'), 'utf8');
+      expect(podfile).toContain("pod 'Sparkling-DebugTool', '9.9.9-rc.1'");
+      expect(podfile).toContain("pod 'DebugRouter', '5.0.15'");
+      expect(podfile).toContain('# No extra devtool modules');
+      expect(podfile).not.toContain("pod 'sparkling-debug-tool', :path");
+      expect(podfile).not.toContain("pod 'sparkling-navigation', :path");
     });
 
     it('cleans stale settings.gradle.kts entries when all modules are removed', async () => {

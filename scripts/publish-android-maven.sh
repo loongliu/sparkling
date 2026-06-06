@@ -176,10 +176,11 @@ PLAYGROUND_DIR="$PROJECT_ROOT/packages/playground/android"
 print_info "Project root: $PROJECT_ROOT"
 print_info "Playground directory: $PLAYGROUND_DIR"
 
-# Pass version to Gradle via -P flag so findProperty("SPARKLING_PUBLISHING_VERSION") picks it up.
+# Pass version to Gradle via -P flags so Gradle modules publish and compile
+# against the same Sparkling SDK version.
 # Note: gradle.properties in subproject dirs are NOT read by Gradle when projectDir is remapped
 # in settings.gradle.kts, so we must pass the version explicitly on the command line.
-GRADLE_VERSION_PROP="-PSPARKLING_PUBLISHING_VERSION=$VERSION"
+GRADLE_VERSION_PROP="-PSPARKLING_PUBLISHING_VERSION=$VERSION -PSPARKLING_ANDROID_SDK_VERSION=$VERSION"
 print_info "Publishing version: $VERSION (via Gradle property)"
 
 # Change to playground directory

@@ -96,8 +96,9 @@ dependencies {
 
 //    kapt(libs.lynx.processor)
 
+    debugImplementation("com.tiktok.sparkling:sparkling-debug-tool:2.1.0-rc.12")
+
     // BEGIN SPARKLING AUTOLINK
     implementation(project(":sparkling-navigation"))
-    debugImplementation(project(":sparkling-debug-tool"))
     // END SPARKLING AUTOLINK
 }

@@ -19,6 +19,7 @@ copied back into the repo so the publish job can ship and commit it.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -32,11 +33,11 @@ TEMPLATE_DIR = REPO_ROOT / "template" / "sparkling-app-template"
 CLI_DIR = REPO_ROOT / "packages" / "create-sparkling-app"
 CLI_ENTRY = CLI_DIR / "dist" / "index.js"
 IOS_PODS_CONFIG = REPO_ROOT / "scripts" / "ios_pods.json"
+COCOAPODS_CDN_BASE = "https://cdn.cocoapods.org/Specs"
 
 # npm packages the scaffolded project installs at the release version.
 NPM_PACKAGES = [
     "sparkling-navigation",
-    "sparkling-debug-tool",
     "sparkling-app-cli",
     "sparkling-types",
     "sparkling-method",
@@ -46,7 +47,12 @@ NPM_PACKAGES = [
 MAVEN_ARTIFACTS = [
     "com/tiktok/sparkling/sparkling",
     "com/tiktok/sparkling/sparkling-method",
+    "com/tiktok/sparkling/sparkling-debug-tool",
 ]
+
+REQUIRED_CDN_SUBSPECS = {
+    "SparklingMethod": {"Core", "Lynx", "DIProvider", "Debug"},
+}
 
 NAMESPACE = "com.sparkling.templateverify"
 
@@ -95,6 +101,41 @@ def http_ok(url):
         return False
 
 
+def read_json_url(url):
+    with urllib.request.urlopen(url, timeout=30) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def cocoapods_cdn_spec_url(pod, version):
+    digest = hashlib.md5(pod.encode("utf-8")).hexdigest()
+    return f"{COCOAPODS_CDN_BASE}/{digest[0]}/{digest[1]}/{digest[2]}/{pod}/{version}/{pod}.podspec.json"
+
+
+def cocoapods_cdn_spec_ready(pod, version, fetch_json=read_json_url):
+    url = cocoapods_cdn_spec_url(pod, version)
+    try:
+        spec = fetch_json(url)
+    except Exception as err:
+        return False, f"{pod} {version} CDN spec unavailable at {url}: {err}"
+
+    actual_version = str(spec.get("version", ""))
+    if actual_version != version:
+        return False, f"{pod} CDN spec version mismatch: expected {version}, got {actual_version or '<missing>'}"
+
+    required_subspecs = REQUIRED_CDN_SUBSPECS.get(pod, set())
+    if required_subspecs:
+        present_subspecs = {
+            str(subspec.get("name", ""))
+            for subspec in spec.get("subspecs", [])
+            if isinstance(subspec, dict)
+        }
+        missing_subspecs = sorted(required_subspecs - present_subspecs)
+        if missing_subspecs:
+            return False, f"{pod} CDN spec missing subspec(s): {', '.join(missing_subspecs)}"
+
+    return True, f"{pod} {version} CDN spec ready"
+
+
 # ──────────────────────────────────────────────────────────────
 # Artifact availability waits (kept from the original verify jobs)
 # ──────────────────────────────────────────────────────────────
@@ -140,7 +181,30 @@ def wait_for_maven(version, attempts=90, delay=20):
         raise SystemExit("::error::Maven artifacts unavailable")
 
 
-def wait_for_trunk(version, attempts=20, delay=30, cdn_wait=90):
+def wait_for_cocoapods_cdn(version, attempts=60, delay=30):
+    section("Waiting for CocoaPods CDN podspecs")
+    pods = [entry["pod_name"] for entry in json.loads(IOS_PODS_CONFIG.read_text())]
+    missing = []
+    for pod in pods:
+        found = False
+        last_reason = ""
+        for i in range(1, attempts + 1):
+            ready, reason = cocoapods_cdn_spec_ready(pod, version)
+            last_reason = reason
+            if ready:
+                log(f"  cdn ok: {pod} {version} (after {i} check(s))")
+                found = True
+                break
+            log(f"  waiting for CDN {pod} {version}... ({i}/{attempts}, next check in {delay}s): {reason}")
+            time.sleep(delay)
+        if not found:
+            log(f"::error::{pod} {version} not ready on CocoaPods CDN after {attempts * delay}s: {last_reason}")
+            missing.append(pod)
+    if missing:
+        raise SystemExit("::error::CocoaPods CDN podspecs unavailable")
+
+
+def wait_for_trunk(version, attempts=20, delay=30):
     section("Waiting for iOS pods on CocoaPods trunk")
     pods = [entry["pod_name"] for entry in json.loads(IOS_PODS_CONFIG.read_text())]
     missing = []
@@ -159,8 +223,7 @@ def wait_for_trunk(version, attempts=20, delay=30, cdn_wait=90):
             missing.append(pod)
     if missing:
         raise SystemExit("::error::CocoaPods trunk pods unavailable")
-    log(f"All pods indexed on trunk. Waiting {cdn_wait}s for CDN propagation...")
-    time.sleep(cdn_wait)
+    wait_for_cocoapods_cdn(version)
 
 
 # ──────────────────────────────────────────────────────────────

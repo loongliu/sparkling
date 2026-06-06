@@ -468,7 +468,6 @@ jobs:
 
             const expectedDeps = {
               "sparkling-navigation": `^${version}`,
-              "sparkling-debug-tool": `~${version}`,
               "sparkling-app-cli": `~${version}`,
               "sparkling-types": `~${version}`,
               "sparkling-method": `~${version}`,
@@ -487,6 +486,11 @@ jobs:
               }
             }
 
+            if (pkg.dependencies?.["sparkling-debug-tool"] || pkg.devDependencies?.["sparkling-debug-tool"]) {
+              console.error("sparkling-app-template must not depend on sparkling-debug-tool from npm; native debug-tool deps are remote Maven/CocoaPods artifacts.");
+              process.exit(1);
+            }
+
             console.log("Template package version and dependencies are aligned.");
           '
 
@@ -497,6 +501,21 @@ jobs:
 
           if ! grep -q "com.tiktok.sparkling:sparkling-method:${VERSION}" template/sparkling-app-template/android/app/build.gradle.kts; then
             echo "::error::Android sparkling-method dependency is not updated to ${VERSION}"
+            exit 1
+          fi
+
+          if ! grep -q "com.tiktok.sparkling:sparkling-debug-tool:${VERSION}" template/sparkling-app-template/android/app/build.gradle.kts; then
+            echo "::error::Android sparkling-debug-tool dependency is not updated to ${VERSION}"
+            exit 1
+          fi
+
+          if grep -q 'project(":sparkling-debug-tool")' template/sparkling-app-template/android/app/build.gradle.kts; then
+            echo "::error::Android template must not depend on local project(:sparkling-debug-tool)"
+            exit 1
+          fi
+
+          if grep -q 'node_modules/sparkling-debug-tool' template/sparkling-app-template/android/settings.gradle.kts; then
+            echo "::error::Android template settings must not include node_modules/sparkling-debug-tool"
             exit 1
           fi
 
@@ -580,13 +599,13 @@ jobs:
 
           - **TypeScript** (`template/sparkling-app-template/package.json`):
             - `sparkling-navigation`
-            - `sparkling-debug-tool`
             - `sparkling-app-cli`
             - `sparkling-types`
             - `sparkling-method` (iOS source via npm)
           - **Android** (`template/sparkling-app-template/android/app/build.gradle.kts`):
             - `com.tiktok.sparkling:sparkling`
             - `com.tiktok.sparkling:sparkling-method`
+            - `com.tiktok.sparkling:sparkling-debug-tool`
           - **iOS** (`template/sparkling-app-template/ios/`):
             - `Podfile` — all Sparkling pods (`Sparkling`, `SparklingMethod`, `Sparkling-DebugTool`, `Sparkling-Router`) pinned to release version from CocoaPods trunk
             - `Podfile.lock` — regenerated and verified by the iOS template verification job

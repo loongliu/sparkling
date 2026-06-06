@@ -72,6 +72,7 @@ export interface MethodModuleConfig {
     packageName?: string;
     className?: string;
     methodClassNames?: string[];
+    mavenDependency?: string;
     projectDir?: string;
     buildGradle?: string;
   };

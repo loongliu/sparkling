@@ -36,7 +36,8 @@ native debug gestures.
 Apps created with the default Sparkling template already include the Debug Panel
 in debug builds and exclude it from release builds.
 
-On Android, the template uses `debugImplementation(project(":sparkling-debug-tool"))`
+On Android, the template uses the remote Maven artifact
+`debugImplementation("com.tiktok.sparkling:sparkling-debug-tool:<version>")`
 and keeps the debug-tool setup in `app/src/debug`. The debug source set calls:
 
 ```kotlin

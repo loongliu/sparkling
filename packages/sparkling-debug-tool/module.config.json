@@ -7,6 +7,7 @@
   "android": {
     "packageName": "com.tiktok.sparkling.debugtool",
     "className": "SparklingDebugTool",
+    "mavenDependency": "com.tiktok.sparkling:sparkling-debug-tool",
     "buildGradle": "android/build.gradle.kts"
   },
   "ios": {

@@ -337,6 +337,30 @@ jobs:
           mv -f "$SRC" "$DEST"
           echo "✅ Applied Podfile.lock verified by verify-template-ios"
 
+      - name: Verify template debug-tool dependency mode
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+          node -e '
+            const fs = require("node:fs");
+            const pkg = JSON.parse(fs.readFileSync("template/sparkling-app-template/package.json", "utf8"));
+            if (pkg.dependencies?.["sparkling-debug-tool"] || pkg.devDependencies?.["sparkling-debug-tool"]) {
+              console.error("sparkling-app-template must not depend on sparkling-debug-tool from npm; native debug-tool deps are remote Maven/CocoaPods artifacts.");
+              process.exit(1);
+            }
+          '
+          if ! grep -q "com.tiktok.sparkling:sparkling-debug-tool:${VERSION}" template/sparkling-app-template/android/app/build.gradle.kts; then
+            echo "::error::Android sparkling-debug-tool dependency is not updated to ${VERSION}"
+            exit 1
+          fi
+          if grep -q 'project(":sparkling-debug-tool")' template/sparkling-app-template/android/app/build.gradle.kts; then
+            echo "::error::Android template must not depend on local project(:sparkling-debug-tool)"
+            exit 1
+          fi
+          if grep -q 'node_modules/sparkling-debug-tool' template/sparkling-app-template/android/settings.gradle.kts; then
+            echo "::error::Android template settings must not include node_modules/sparkling-debug-tool"
+            exit 1
+          fi
+
       - name: Check template package status
         id: template_check
         run: |

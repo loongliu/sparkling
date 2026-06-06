@@ -33,7 +33,8 @@ Release 构建不会显示这个标签。Sparkling 也不再安装双指长按�
 使用默认 Sparkling 模板创建的应用，默认就是 **debug 包包含 Debug Panel，release 包
 不包含 Debug Panel**。
 
-Android 上，模板通过 `debugImplementation(project(":sparkling-debug-tool"))` 引入
+Android 上，模板通过远端 Maven 产物
+`debugImplementation("com.tiktok.sparkling:sparkling-debug-tool:<version>")` 引入
 debug tool，并把初始化代码放在 `app/src/debug`。debug source set 会调用：
 
 ```kotlin

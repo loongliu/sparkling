@@ -22,8 +22,9 @@ def sparkling_methods_dep
 end
 
 def sparkling_devtool
-  # BEGIN SPARKLING AUTOLINK
   pod 'Sparkling-DebugTool', '2.1.0-rc.12'
+  # BEGIN SPARKLING AUTOLINK
+  # No extra devtool modules
   # END SPARKLING AUTOLINK
   pod 'DebugRouter', '5.0.15'
   pod 'DebugRouter/MessageTransceiverEnable', '5.0.15'

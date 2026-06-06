@@ -122,6 +122,13 @@ TEMPLATE_PACKAGE_FILE="template/sparkling-app-template/package.json"
 TEMPLATE_ANDROID_FILE="template/sparkling-app-template/android/app/build.gradle.kts"
 TEMPLATE_IOS_PODFILE="template/sparkling-app-template/ios/Podfile"
 
+declare -a ANDROID_SDK_FALLBACK_FILES=(
+    "packages/sparkling-debug-tool/android/build.gradle.kts"
+    "packages/methods/sparkling-navigation/android/build.gradle.kts"
+    "packages/methods/sparkling-media/android/build.gradle.kts"
+    "packages/methods/sparkling-storage/android/build.gradle.kts"
+)
+
 # Function to update TypeScript package.json files
 update_typescript_versions() {
     print_info "========================================"
@@ -200,13 +207,11 @@ update_template_dependencies() {
         if [ "$DRY_RUN" = true ]; then
             print_info "[DRY RUN] Would update $TEMPLATE_PACKAGE_FILE dependencies:"
             print_info "          sparkling-navigation -> ^$VERSION"
-            print_info "          sparkling-debug-tool -> ~$VERSION"
             print_info "          sparkling-app-cli -> ~$VERSION"
             print_info "          sparkling-types -> ~$VERSION"
             print_info "          sparkling-method -> ~$VERSION"
         else
             sedi "s|\"sparkling-navigation\": *\"[^\"]*\"|\"sparkling-navigation\": \"^${VERSION}\"|" "$template_pkg"
-            sedi "s|\"sparkling-debug-tool\": *\"[^\"]*\"|\"sparkling-debug-tool\": \"~${VERSION}\"|" "$template_pkg"
             sedi "s|\"sparkling-app-cli\": *\"[^\"]*\"|\"sparkling-app-cli\": \"~${VERSION}\"|" "$template_pkg"
             sedi "s|\"sparkling-types\": *\"[^\"]*\"|\"sparkling-types\": \"~${VERSION}\"|" "$template_pkg"
             sedi "s|\"sparkling-method\": *\"[^\"]*\"|\"sparkling-method\": \"~${VERSION}\"|" "$template_pkg"
@@ -222,6 +227,7 @@ update_template_dependencies() {
         else
             sedi "s|com.tiktok.sparkling:sparkling:[^\"]*|com.tiktok.sparkling:sparkling:${VERSION}|" "$template_android"
             sedi "s|com.tiktok.sparkling:sparkling-method:[^\"]*|com.tiktok.sparkling:sparkling-method:${VERSION}|" "$template_android"
+            sedi "s|com.tiktok.sparkling:sparkling-debug-tool:[^\"]*|com.tiktok.sparkling:sparkling-debug-tool:${VERSION}|" "$template_android"
             print_success "Updated template Android dependencies in $TEMPLATE_ANDROID_FILE"
         fi
     else
@@ -247,6 +253,39 @@ update_template_dependencies() {
     print_info ""
     print_info "iOS Podfile pins Sparkling pod versions directly (from CocoaPods trunk) and is updated by this script."
     print_info "After version bump, run: cd template/sparkling-app-template/ios && pod install --repo-update"
+}
+
+# Function to update Android module fallback SDK versions used when modules are
+# consumed from npm outside the monorepo.
+update_android_sdk_fallback_versions() {
+    print_info ""
+    print_info "========================================"
+    print_info "Updating Android SDK fallback versions..."
+    print_info "========================================"
+
+    for file in "${ANDROID_SDK_FALLBACK_FILES[@]}"; do
+        local filepath="$PROJECT_ROOT/$file"
+        if [ -f "$filepath" ]; then
+            local current_version
+            current_version=$(awk '
+                /SPARKLING_ANDROID_SDK_VERSION/ { seen = 1 }
+                seen && match($0, /\?: "[^"]+"/) {
+                    value = substr($0, RSTART + 4, RLENGTH - 5)
+                    print value
+                    exit
+                }
+            ' "$filepath")
+
+            if [ "$DRY_RUN" = true ]; then
+                print_info "[DRY RUN] Would update $file Android SDK fallback: ${current_version:-<missing>} -> $VERSION"
+            else
+                VERSION="$VERSION" perl -0pi -e 's/((?:findProperty\("SPARKLING_ANDROID_SDK_VERSION"\)[\s\S]*?System\.getenv\("SPARKLING_ANDROID_SDK_VERSION"\)[\s\S]*?\?:\s*"))[^"]+(")/$1$ENV{VERSION}$2/' "$filepath"
+                print_success "Updated $file Android SDK fallback: ${current_version:-<missing>} -> $VERSION"
+            fi
+        else
+            print_warning "File not found: $file"
+        fi
+    done
 }
 
 # Function to show Android info
@@ -306,6 +345,7 @@ main() {
     update_typescript_versions
     update_ios_versions
     update_template_dependencies
+    update_android_sdk_fallback_versions
     show_android_info
 
     print_info ""

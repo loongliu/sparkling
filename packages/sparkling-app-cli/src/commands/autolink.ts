@@ -253,6 +253,7 @@ async function discoverModules(cwd: string): Promise<MethodModuleConfig[]> {
         : undefined;
       const androidPackageName = typeof androidConfig?.packageName === 'string' ? androidConfig.packageName : undefined;
       const androidClassName = typeof androidConfig?.className === 'string' ? androidConfig.className : undefined;
+      const androidMavenDependency = resolveMavenDependency(androidConfig?.mavenDependency, moduleRoot);
 
       const androidBuild = (androidConfig?.buildGradle && typeof androidConfig.buildGradle === 'string')
         ? path.resolve(moduleRoot, androidConfig.buildGradle)
@@ -281,6 +282,7 @@ async function discoverModules(cwd: string): Promise<MethodModuleConfig[]> {
             androidClassName,
             Object.keys(methodsConfig ?? {}),
           ),
+          mavenDependency: androidMavenDependency,
           projectDir: path.dirname(androidBuild),
           buildGradle: androidBuild,
         },
@@ -322,6 +324,33 @@ function resolveDefaultAndroidBuildGradle(moduleRoot: string): string {
   if (fs.existsSync(kts)) return kts;
   if (fs.existsSync(groovy)) return groovy;
   return kts;
+}
+
+function readPackageVersion(moduleRoot: string): string | undefined {
+  const packageJsonPath = path.join(moduleRoot, 'package.json');
+  if (!fs.existsSync(packageJsonPath)) return undefined;
+  try {
+    const pkg = fs.readJSONSync(packageJsonPath);
+    return typeof pkg.version === 'string' && pkg.version.trim() ? pkg.version.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveMavenDependency(value: unknown, moduleRoot: string): string | undefined {
+  if (typeof value !== 'string' || !value.trim()) {
+    return undefined;
+  }
+  const dependency = value.trim();
+  const parts = dependency.split(':');
+  if (parts.length >= 3) {
+    return dependency;
+  }
+  if (parts.length !== 2) {
+    return undefined;
+  }
+  const version = readPackageVersion(moduleRoot);
+  return version ? `${dependency}:${version}` : undefined;
 }
 
 function upperFirst(value: string): string {
@@ -367,13 +396,14 @@ function injectAndroidSettings(settingsPath: string, modules: MethodModuleConfig
   let content = fs.readFileSync(settingsPath, 'utf8');
   content = content.replace(new RegExp(`${ANDROID_AUTOLINK_START}[\\s\\S]*?${ANDROID_AUTOLINK_END}\\s*`, 'm'), '');
   content = stripExistingAndroidIncludes(content, modules.map(m => m.name));
+  const localModules = modules.filter(m => !m.android?.mavenDependency);
 
-  if (!modules.length) {
+  if (!localModules.length) {
     fs.writeFileSync(settingsPath, content);
     return;
   }
 
-  const lines = modules.map(module => {
+  const lines = localModules.map(module => {
     const rel = relativeTo(projectDir, module.android?.projectDir ?? module.root);
     return `        "${module.name}" to file("${toPosixPath(rel)}"),`;
   }).join('\n');
@@ -391,7 +421,7 @@ function injectAndroidSettings(settingsPath: string, modules: MethodModuleConfig
     ANDROID_AUTOLINK_END,
   ].join('\n');
 
-  const groovyLines = modules.map(module => {
+  const groovyLines = localModules.map(module => {
     const rel = relativeTo(projectDir, module.android?.projectDir ?? module.root);
     return `  [name: "${module.name}", dir: file("${toPosixPath(rel)}")]`;
   }).join(',\n');
@@ -484,6 +514,52 @@ function stripAndroidAutolinkBlock(content: string): string {
   const pattern = new RegExp(`\\n?[ \\t]*${ANDROID_AUTOLINK_START}[\\s\\S]*?${ANDROID_AUTOLINK_END}[ \\t]*\\n?`, 'gm');
   const cleaned = content.replace(pattern, '\n');
   return cleaned.replace(/\n{3,}/g, '\n\n');
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function stripExistingAndroidDependencies(content: string, module: MethodModuleConfig): string {
+  let updated = content;
+  const name = escapeRegExp(module.name);
+  const configurations = ['implementation', 'debugImplementation'];
+
+  for (const configuration of configurations) {
+    const projectPatterns = [
+      new RegExp(`\\s*${configuration}\\s*\\(\\s*project\\(["']:${name}["']\\)\\s*\\)\\s*\\n?`, 'g'),
+      new RegExp(`\\s*${configuration}\\s+project\\(["']:${name}["']\\)\\s*\\n?`, 'g'),
+    ];
+    for (const pattern of projectPatterns) {
+      updated = updated.replace(pattern, '');
+    }
+
+    const mavenDependency = module.android?.mavenDependency;
+    if (mavenDependency) {
+      const dependency = escapeRegExp(mavenDependency);
+      const remotePatterns = [
+        new RegExp(`\\s*${configuration}\\s*\\(\\s*["']${dependency}["']\\s*\\)\\s*\\n?`, 'g'),
+        new RegExp(`\\s*${configuration}\\s+["']${dependency}["']\\s*\\n?`, 'g'),
+      ];
+      for (const pattern of remotePatterns) {
+        updated = updated.replace(pattern, '');
+      }
+    }
+  }
+
+  return updated;
+}
+
+function kotlinDependencyExpression(module: MethodModuleConfig): string {
+  return module.android?.mavenDependency
+    ? `"${module.android.mavenDependency}"`
+    : `project(":${module.name}")`;
+}
+
+function groovyDependencyExpression(module: MethodModuleConfig): string {
+  return module.android?.mavenDependency
+    ? `"${module.android.mavenDependency}"`
+    : `project(":${module.name}")`;
 }
 
 function calculateBraceBalance(content: string): number {
@@ -616,13 +692,7 @@ function injectAndroidDependencies(appGradlePath: string, modules: MethodModuleC
   let content = fs.readFileSync(appGradlePath, 'utf8');
   content = stripAndroidAutolinkBlock(content);
   for (const module of modules) {
-    const depPatterns = [
-      new RegExp(`\\s*implementation\\s*\\(\\s*project\\(["']:${module.name}["']\\)\\s*\\)\\s*\\n?`, 'g'),
-      new RegExp(`\\s*implementation\\s+project\\(["']:${module.name}["']\\)\\s*\\n?`, 'g'),
-    ];
-    for (const depPattern of depPatterns) {
-      content = content.replace(depPattern, '');
-    }
+    content = stripExistingAndroidDependencies(content, module);
   }
 
   if (!modules.length) {
@@ -637,18 +707,23 @@ function injectAndroidDependencies(appGradlePath: string, modules: MethodModuleC
 
   const regularModules = modules.filter(m => !m.devtool);
   const devtoolModules = modules.filter(m => m.devtool);
+  const regularLocalModules = regularModules.filter(m => !m.android?.mavenDependency);
+  const regularRemoteModules = regularModules.filter(m => m.android?.mavenDependency);
 
   const ktsLines: string[] = [];
-  if (regularModules.length) {
-    const depLinesKts = regularModules.map(m => `${innerIndent}    project(":${m.name}"),`).join('\n');
+  if (regularLocalModules.length) {
+    const depLinesKts = regularLocalModules.map(m => `${innerIndent}    ${kotlinDependencyExpression(m)},`).join('\n');
     ktsLines.push(
       `${innerIndent}listOf(`,
       depLinesKts,
       `${innerIndent}).forEach { dep -> add("implementation", dep) }`,
     );
   }
+  for (const m of regularRemoteModules) {
+    ktsLines.push(`${innerIndent}implementation(${kotlinDependencyExpression(m)})`);
+  }
   for (const m of devtoolModules) {
-    ktsLines.push(`${innerIndent}debugImplementation(project(":${m.name}"))`);
+    ktsLines.push(`${innerIndent}debugImplementation(${kotlinDependencyExpression(m)})`);
   }
   const ktsBlock = [
     `${innerIndent}// BEGIN SPARKLING AUTOLINK`,
@@ -657,16 +732,19 @@ function injectAndroidDependencies(appGradlePath: string, modules: MethodModuleC
   ].join('\n');
 
   const groovyLines: string[] = [];
-  if (regularModules.length) {
-    const depLinesGroovy = regularModules.map(m => `${innerIndent}    project(":${m.name}")`).join(',\n');
+  if (regularLocalModules.length) {
+    const depLinesGroovy = regularLocalModules.map(m => `${innerIndent}    ${groovyDependencyExpression(m)}`).join(',\n');
     groovyLines.push(
       `${innerIndent}[`,
       depLinesGroovy,
       `${innerIndent}].each { dep -> add("implementation", dep) }`,
     );
   }
+  for (const m of regularRemoteModules) {
+    groovyLines.push(`${innerIndent}implementation ${groovyDependencyExpression(m)}`);
+  }
   for (const m of devtoolModules) {
-    groovyLines.push(`${innerIndent}debugImplementation project(":${m.name}")`);
+    groovyLines.push(`${innerIndent}debugImplementation ${groovyDependencyExpression(m)}`);
   }
   const groovyBlock = [
     `${innerIndent}// BEGIN SPARKLING AUTOLINK`,
@@ -751,6 +829,26 @@ function replaceDefBlock(content: string, defName: string, newBody: string): str
   return content.replace(existing, newBody);
 }
 
+function replaceDefAutolinkRegion(content: string, defName: string, region: string, fallbackBody: string): string {
+  const start = content.indexOf(`def ${defName}`);
+  if (start === -1) return content;
+  const end = content.indexOf('\nend', start);
+  if (end === -1) return content;
+  const existing = content.slice(start, end + '\nend'.length);
+  const regionStartMarker = existing.indexOf(IOS_AUTOLINK_START);
+  const regionEndMarker = existing.indexOf(IOS_AUTOLINK_END, regionStartMarker);
+  if (regionStartMarker === -1 || regionEndMarker === -1) {
+    return content.replace(existing, fallbackBody);
+  }
+
+  const lineStart = existing.lastIndexOf('\n', regionStartMarker);
+  const regionStart = lineStart === -1 ? regionStartMarker : lineStart + 1;
+  const lineEnd = existing.indexOf('\n', regionEndMarker);
+  const regionEnd = lineEnd === -1 ? regionEndMarker + IOS_AUTOLINK_END.length : lineEnd;
+  const updated = `${existing.slice(0, regionStart)}${region}${existing.slice(regionEnd)}`;
+  return content.replace(existing, updated);
+}
+
 function injectPodfile(podfilePath: string, modules: MethodModuleConfig[], projectDir: string) {
   if (!fs.existsSync(podfilePath)) {
     console.warn(ui.warn(`Podfile not found at ${podfilePath}, skipping iOS autolink`));
@@ -770,27 +868,33 @@ function injectPodfile(podfilePath: string, modules: MethodModuleConfig[], proje
   }
 
   const podLines = regularModules.map(m => buildPodLine(m, podfilePath)).join('\n');
-  const methodsBlock = [
-    'def sparkling_methods_dep',
+  const methodsRegion = [
     `  ${IOS_AUTOLINK_START}`,
     podLines || '  # No Sparkling methods found',
     `  ${IOS_AUTOLINK_END}`,
+  ].join('\n');
+  const methodsBlock = [
+    'def sparkling_methods_dep',
+    methodsRegion,
     'end',
   ].join('\n');
-  content = replaceDefBlock(content, 'sparkling_methods_dep', methodsBlock);
+  content = replaceDefAutolinkRegion(content, 'sparkling_methods_dep', methodsRegion, methodsBlock);
 
   // --- sparkling_devtool (devtool modules, debug only) ---
   const devtoolPodLines = devtoolModules.map(m => buildPodLine(m, podfilePath)).join('\n');
+  const devtoolRegion = [
+    `  ${IOS_AUTOLINK_START}`,
+    devtoolPodLines || '  # No extra devtool modules',
+    `  ${IOS_AUTOLINK_END}`,
+  ].join('\n');
   const devtoolBlock = [
     'def sparkling_devtool',
-    `  ${IOS_AUTOLINK_START}`,
-    devtoolPodLines || '  # No devtool modules',
-    `  ${IOS_AUTOLINK_END}`,
+    devtoolRegion,
     'end',
   ].join('\n');
 
   if (content.includes('def sparkling_devtool')) {
-    content = replaceDefBlock(content, 'sparkling_devtool', devtoolBlock);
+    content = replaceDefAutolinkRegion(content, 'sparkling_devtool', devtoolRegion, devtoolBlock);
   } else {
     // Insert sparkling_devtool block right after sparkling_methods_dep
     const methodsEnd = content.indexOf('def sparkling_methods_dep');
