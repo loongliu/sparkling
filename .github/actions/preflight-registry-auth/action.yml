@@ -60,6 +60,18 @@ runs:
         SIGNING_PASSWORD: ${{ inputs.signing_password }}
         SIGNING_KEY: ${{ inputs.signing_key }}
       run: |
+        mask_github_value() {
+          local value="$1"
+          value="${value//'%'/'%25'}"
+          value="${value//$'\r'/'%0D'}"
+          value="${value//$'\n'/'%0A'}"
+          echo "::add-mask::$value"
+        }
+
+        set +x
+        [ -n "${MAVEN_CENTRAL_USERNAME:-}" ] && mask_github_value "$MAVEN_CENTRAL_USERNAME"
+        [ -n "${MAVEN_CENTRAL_PASSWORD:-}" ] && mask_github_value "$MAVEN_CENTRAL_PASSWORD"
+
         MISSING=""
         [ -z "$MAVEN_CENTRAL_USERNAME" ] && MISSING="$MISSING MAVEN_CENTRAL_USERNAME"
         [ -z "$MAVEN_CENTRAL_PASSWORD" ] && MISSING="$MISSING MAVEN_CENTRAL_PASSWORD"
@@ -71,15 +83,37 @@ runs:
           exit 1
         fi
 
-        BEARER_TOKEN=$(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" | base64)
-        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-          -H "Authorization: Bearer ${BEARER_TOKEN}" \
-          "https://ossrh-staging-api.central.sonatype.com/manual/search/repositories?ip=any&profile_id=com.tiktok.sparkling")
-        if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-          echo "::error::Maven Central API auth check failed (HTTP $HTTP_CODE)."
-          exit 1
-        fi
-        echo "✅ Maven Central auth looks valid"
+        BEARER_TOKEN=$(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" | base64 | tr -d '\n')
+        mask_github_value "$BEARER_TOKEN"
+        CURL_CONFIG=$(mktemp)
+        trap 'rm -f "$CURL_CONFIG"' EXIT
+        chmod 600 "$CURL_CONFIG"
+        printf 'header = "Authorization: Bearer %s"\n' "$BEARER_TOKEN" > "$CURL_CONFIG"
+
+        HTTP_CODE=""
+        for attempt in 1 2 3; do
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            --config "$CURL_CONFIG" \
+            "https://ossrh-staging-api.central.sonatype.com/manual/search/repositories?ip=any&profile_id=com.tiktok.sparkling")
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "✅ Maven Central auth looks valid"
+            exit 0
+          fi
+          echo "::warning::Maven Central API preflight attempt ${attempt}/3 returned HTTP ${HTTP_CODE}."
+          if [ "$attempt" != "3" ]; then
+            sleep 20
+          fi
+        done
+
+        case "$HTTP_CODE" in
+          403|429|5*)
+            echo "::warning::Maven Central API preflight is inconclusive (HTTP ${HTTP_CODE}); continuing so the publish step can validate credentials directly."
+            ;;
+          *)
+            echo "::error::Maven Central API auth check failed (HTTP ${HTTP_CODE})."
+            exit 1
+            ;;
+        esac
 
     - name: Setup Ruby
       if: ${{ inputs.publish_ios == 'true' }}
