@@ -1,0 +1,44 @@
+name: Setup npm CLI
+description: Replace the Node-bundled npm CLI with an exactly pinned version.
+
+inputs:
+  npm_version:
+    description: Exact npm version to put on PATH (Trusted Publishing needs >= 11.5.1)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install pinned npm
+      shell: bash
+      env:
+        NPM_VERSION: ${{ inputs.npm_version }}
+      run: |
+        set -euo pipefail
+
+        CURRENT="$(npm --version)"
+        if [ "$CURRENT" = "$NPM_VERSION" ]; then
+          echo "✅ npm ${NPM_VERSION} is already active"
+          exit 0
+        fi
+
+        echo "📦 Installing npm@${NPM_VERSION} (current: ${CURRENT})..."
+
+        # npm 10.x cannot upgrade itself in place: it removes its own bundled
+        # dependencies mid-reify and then crashes with MODULE_NOT_FOUND on
+        # 'promise-retry'. Unpack the target tarball first and let that copy
+        # run the global install instead. See nodejs/node#62430.
+        BOOTSTRAP_DIR="$(mktemp -d)"
+        trap 'rm -rf "$BOOTSTRAP_DIR"' EXIT
+        curl -fsSL --retry 3 --retry-delay 5 \
+          "https://registry.npmjs.org/npm/-/npm-${NPM_VERSION}.tgz" \
+          -o "${BOOTSTRAP_DIR}/npm.tgz"
+        tar -xzf "${BOOTSTRAP_DIR}/npm.tgz" -C "$BOOTSTRAP_DIR" --strip-components=1
+        node "${BOOTSTRAP_DIR}/bin/npm-cli.js" install -g "npm@${NPM_VERSION}"
+
+        INSTALLED="$(npm --version)"
+        if [ "$INSTALLED" != "$NPM_VERSION" ]; then
+          echo "::error::Expected npm ${NPM_VERSION} on PATH but found ${INSTALLED}"
+          exit 1
+        fi
+        echo "✅ npm version: ${INSTALLED}"
