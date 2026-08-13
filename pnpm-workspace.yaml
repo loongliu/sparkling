@@ -1,6 +1,7 @@
 packages:
   - 'packages/*'
   - 'packages/methods/*'
+  - 'examples/*'
   # exclude packages that are inside test directories
   - '!**/test/**'
   - template/*
