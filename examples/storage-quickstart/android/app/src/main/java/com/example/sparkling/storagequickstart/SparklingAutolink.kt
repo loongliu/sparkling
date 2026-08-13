@@ -20,5 +20,16 @@ object SparklingAutolink {
                         "com.tiktok.sparkling.method.router.close.RouterCloseMethod",
                     ),
             ),
+            SparklingAutolinkModule(
+                name = "sparkling-storage",
+                androidPackage = "com.tiktok.sparkling.method.storage",
+                className = "StorageMethod",
+                methodClassNames =
+                    listOf(
+                        "com.tiktok.sparkling.method.storage.getItem.StorageGetItemMethod",
+                        "com.tiktok.sparkling.method.storage.setItem.StorageSetItemMethod",
+                        "com.tiktok.sparkling.method.storage.removeItem.StorageRemoveItemMethod",
+                    ),
+            ),
         )
 }
