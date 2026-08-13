@@ -1,0 +1,39 @@
+{
+  "name": "@lynx-js/storage",
+  "version": "0.0.0-experimental",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./provider": {
+      "types": "./dist/provider.d.ts",
+      "import": "./dist/provider.js",
+      "default": "./dist/provider.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "provider": [
+        "./dist/provider.d.ts"
+      ],
+      "*": [
+        "./dist/index.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

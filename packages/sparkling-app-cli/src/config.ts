@@ -14,6 +14,14 @@ import { DEV_SERVER_PORT } from './constants';
 let registeredTsNode = false;
 const pkgRequire = createRequire(__filename);
 
+function providerPreEntryPluginLines(cwd: string): string[] {
+  return [
+    `const sparklingProviderPreEntry = pluginSparklingProviderPreEntry({ cwd: ${JSON.stringify(path.resolve(cwd))} })`,
+    'const configuredPlugins = Array.isArray(lynxCfg.plugins) ? lynxCfg.plugins : []',
+    'const sparklingPlugins = [sparklingProviderPreEntry, ...configuredPlugins]',
+  ];
+}
+
 function isEsmProject(cwd: string): boolean {
   try {
     let dir = cwd;
@@ -58,9 +66,12 @@ export function createTempLynxConfig(cwd: string, appConfigPath: string): string
   const tempConfigPath = path.join(tempDir, 'lynx.build.config.ts');
   const rel = path.relative(tempDir, path.resolve(appConfigPath)).split(path.sep).join('/');
   const content = [
+    "import { pluginSparklingProviderPreEntry } from 'sparkling-app-cli/provider-preentry'",
     `import cfgModule from '${rel.startsWith('.') ? rel : './' + rel}'`,
     'const cfg: any = (cfgModule as any).default ?? cfgModule',
-    'export default (cfg.lynxConfig ?? cfg) as any',
+    'const lynxCfg = cfg.lynxConfig ?? cfg',
+    ...providerPreEntryPluginLines(cwd),
+    'export default { ...lynxCfg, plugins: sparklingPlugins } as any',
   ].join('\n');
   fs.writeFileSync(tempConfigPath, content);
   return tempConfigPath;
@@ -72,10 +83,12 @@ export function createDevLynxConfig(cwd: string, appConfigPath: string, port: nu
   const tempConfigPath = path.join(tempDir, 'lynx.dev.config.ts');
   const rel = path.relative(tempDir, path.resolve(appConfigPath)).split(path.sep).join('/');
   const content = [
+    "import { pluginSparklingProviderPreEntry } from 'sparkling-app-cli/provider-preentry'",
     `import cfgModule from '${rel.startsWith('.') ? rel : './' + rel}'`,
     'const cfg: any = (cfgModule as any).default ?? cfgModule',
     'const lynxCfg = cfg.lynxConfig ?? cfg',
-    `export default { ...lynxCfg, server: { ...lynxCfg.server, port: ${port}, strictPort: true${host ? `, host: ${JSON.stringify(host)}` : ''} } } as any`,
+    ...providerPreEntryPluginLines(cwd),
+    `export default { ...lynxCfg, plugins: sparklingPlugins, server: { ...lynxCfg.server, port: ${port}, strictPort: true${host ? `, host: ${JSON.stringify(host)}` : ''} } } as any`,
   ].join('\n');
   fs.writeFileSync(tempConfigPath, content);
   return tempConfigPath;

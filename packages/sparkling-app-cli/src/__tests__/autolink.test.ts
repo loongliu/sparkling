@@ -158,6 +158,24 @@ describe('autolink', () => {
     fs.removeSync(cwd);
   });
 
+  it('links only method modules declared by an application manifest', async () => {
+    scaffoldProject(cwd);
+    createMethodModule(cwd, 'sparkling-storage');
+    createMethodModule(cwd, 'sparkling-media');
+    fs.writeJSONSync(path.join(cwd, 'package.json'), {
+      dependencies: {
+        'sparkling-storage': '1.0.0',
+      },
+    });
+
+    const modules = await autolink({ cwd, platform: 'android' });
+
+    expect(modules.map(module => module.name)).toEqual(['sparkling-storage']);
+    const settings = fs.readFileSync(path.join(cwd, 'android', 'settings.gradle.kts'), 'utf8');
+    expect(settings).toContain('sparkling-storage');
+    expect(settings).not.toContain('sparkling-media');
+  });
+
   // ── One module ──────────────────────────────────────────────────────────
 
   describe('one sparkling method module', () => {

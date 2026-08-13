@@ -8,7 +8,8 @@
   },
   "include": [
     "./src/**/*", // Include all .ts, .tsx, .d.ts files under src directory
-    "index.ts"  // Include index.ts file in project root directory
+    "index.ts",  // Include index.ts file in project root directory
+    "register.ts"
   ],
   "exclude": [
     "node_modules", // Exclude node_modules
