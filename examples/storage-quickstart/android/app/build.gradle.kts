@@ -99,6 +99,9 @@ dependencies {
     debugImplementation("com.tiktok.sparkling:sparkling-debug-tool:2.1.0-rc.12")
 
     // BEGIN SPARKLING AUTOLINK
-    implementation(project(":sparkling-navigation"))
+    listOf(
+        project(":sparkling-navigation"),
+        project(":sparkling-storage"),
+    ).forEach { dep -> add("implementation", dep) }
     // END SPARKLING AUTOLINK
 }

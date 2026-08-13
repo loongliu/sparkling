@@ -9,5 +9,6 @@ struct SparklingAutolinkModule {
 
 let sparklingAutolinkBundleId = "com.example.sparkling.storagequickstart"
 let sparklingAutolinkModules: [SparklingAutolinkModule] = [
-    SparklingAutolinkModule(name: "sparkling-navigation", iosModuleName: "Router", className: "RouterMethod")
+    SparklingAutolinkModule(name: "sparkling-navigation", iosModuleName: "Router", className: "RouterMethod"),
+    SparklingAutolinkModule(name: "sparkling-storage", iosModuleName: "SPKStorage", className: "StorageMethod")
 ]

@@ -17,12 +17,18 @@ importers:
       '@lynx-js/react':
         specifier: ^0.116.2
         version: 0.116.5(@lynx-js/types@3.7.0)(@types/react@18.3.28)
+      '@lynx-js/storage':
+        specifier: workspace:*
+        version: link:../../packages/lynx-js-storage
       sparkling-method:
         specifier: ~2.1.0-rc.12
         version: 2.1.0-rc.20
       sparkling-navigation:
         specifier: ~2.1.0-rc.12
         version: 2.1.0-rc.20
+      sparkling-storage:
+        specifier: workspace:*
+        version: link:../../packages/methods/sparkling-storage
     devDependencies:
       '@lynx-js/qrcode-rsbuild-plugin':
         specifier: ^0.4.4
@@ -52,8 +58,8 @@ importers:
         specifier: ^3.8.1
         version: 3.8.3
       sparkling-app-cli:
-        specifier: ~2.1.0-rc.12
-        version: 2.1.0-rc.12(@rspack/core@1.7.11(@swc/helpers@0.5.21))(@types/node@25.6.0)(typescript@5.9.3)(webpack@5.105.0)
+        specifier: workspace:*
+        version: link:../../packages/sparkling-app-cli
       sparkling-types:
         specifier: ~2.1.0-rc.12
         version: 2.1.0-rc.20(@lynx-js/types@3.7.0)

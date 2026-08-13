@@ -34,7 +34,8 @@ const config: AppConfig = {
       port: 5969,
     },
   },
-  // Keep this checked-in Android baseline independent from DevTool artifacts.
+  // Keep the quickstart focused on the Storage call path. A real standalone
+  // project can enable DevTool independently when needed.
   devtool: false,
   appName: 'storage-quickstart',
   platform: {

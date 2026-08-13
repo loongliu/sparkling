@@ -1,36 +1,125 @@
 .page {
   min-height: 100vh;
-  padding: 48px 20px;
+  padding: 44px 20px 36px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  background-color: #eef7f6;
+  gap: 18px;
+  background-color: #f4f7fb;
 }
 
-.card {
-  padding: 28px 24px;
+.hero {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  border-radius: 18px;
-  background-color: #ffffff;
-  border: 1px solid #cae8e5;
+  gap: 9px;
 }
 
 .eyebrow {
-  color: #007a74;
+  color: #006c67;
   font-size: 12px;
   font-weight: 700;
 }
 
 .title {
-  color: #151a1f;
-  font-size: 30px;
+  color: #121417;
+  font-size: 32px;
   font-weight: 800;
 }
 
-.description {
-  color: #53616c;
+.subtitle {
+  color: #5f6873;
   font-size: 15px;
   line-height: 22px;
+}
+
+.result,
+.card {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-radius: 16px;
+  background-color: #ffffff;
+}
+
+.result {
+  border-left: 6px solid #66717e;
+}
+
+.result--running {
+  border-left-color: #3478f6;
+}
+
+.result--passed {
+  border-left-color: #14804a;
+}
+
+.result--failed {
+  border-left-color: #c72a2a;
+}
+
+.result-label,
+.card-title {
+  color: #121417;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.result-detail,
+.flow-step {
+  color: #4b5560;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.sample-row {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border: 1px solid #dce3ea;
+  border-radius: 10px;
+  background-color: #f8fafc;
+}
+
+.sample-label {
+  color: #242a31;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sample-value {
+  color: #4b5560;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.actions {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.button {
+  flex: 1;
+  padding: 13px 10px;
+  align-items: center;
+  border: 1px solid #cbd4de;
+  border-radius: 10px;
+  background-color: #ffffff;
+}
+
+.button--primary {
+  border-color: #008f89;
+  background-color: #008f89;
+}
+
+.button-text {
+  color: #24303b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.button-text--primary {
+  color: #ffffff;
 }
