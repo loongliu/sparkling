@@ -1,0 +1,36 @@
+.page {
+  min-height: 100vh;
+  padding: 48px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background-color: #eef7f6;
+}
+
+.card {
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-radius: 18px;
+  background-color: #ffffff;
+  border: 1px solid #cae8e5;
+}
+
+.eyebrow {
+  color: #007a74;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.title {
+  color: #151a1f;
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.description {
+  color: #53616c;
+  font-size: 15px;
+  line-height: 22px;
+}
