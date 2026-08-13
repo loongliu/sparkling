@@ -24,6 +24,42 @@ export interface AutolinkOptions {
 }
 
 /**
+ * Read the direct dependencies declared by the application that owns `cwd`.
+ *
+ * Autolink scans both node_modules and the containing workspace for method
+ * packages. The workspace scan can see sibling packages that the application
+ * does not depend on, so its result must be constrained by the application's
+ * manifest before native projects and registries are generated.
+ *
+ * Return `null` when no usable manifest is available so existing projects
+ * without package.json keep the previous discovery-only behavior.
+ */
+function readDeclaredDependencyNames(cwd: string): Set<string> | null {
+  const manifestPath = path.join(cwd, 'package.json');
+  if (!fs.existsSync(manifestPath)) return null;
+
+  try {
+    const manifest = fs.readJSONSync(manifestPath) as Record<string, unknown>;
+    const names = new Set<string>();
+    for (const field of ['dependencies', 'devDependencies', 'optionalDependencies']) {
+      const dependencies = manifest[field];
+      if (!dependencies || typeof dependencies !== 'object' || Array.isArray(dependencies)) {
+        continue;
+      }
+      for (const name of Object.keys(dependencies as Record<string, unknown>)) {
+        names.add(name);
+      }
+    }
+    return names;
+  } catch (error) {
+    console.warn(ui.warn(
+      `Failed to read application dependencies from ${manifestPath}: ${error instanceof Error ? error.message : String(error)}`,
+    ));
+    return null;
+  }
+}
+
+/**
  * Extract workspace glob patterns from a candidate workspace root.
  * Supports npm/yarn (package.json "workspaces"), pnpm (pnpm-workspace.yaml),
  * and lerna (lerna.json "packages").
@@ -989,6 +1025,10 @@ export async function autolink(options: AutolinkOptions): Promise<MethodModuleCo
   const doAndroid = platform === 'android' || platform === 'all';
   const doIos = platform === 'ios' || platform === 'all';
   let modules = await discoverModules(options.cwd);
+  const declaredDependencies = readDeclaredDependencyNames(options.cwd);
+  if (declaredDependencies) {
+    modules = modules.filter(module => declaredDependencies.has(module.name));
+  }
   if (isVerboseEnabled()) {
     const moduleNames = modules.map(m => m.name).join(', ') || '(none)';
     verboseLog(`Autolink platforms -> android: ${doAndroid}, ios: ${doIos}`);

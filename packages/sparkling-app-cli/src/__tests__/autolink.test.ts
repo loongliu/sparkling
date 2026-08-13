@@ -55,9 +55,9 @@ function buildGradleTemplate(existingBlock = ''): string {
   ].join('\n');
 }
 
-/** Write a module.config.json inside a sparkling method package in node_modules. */
-function createMethodModule(
-  cwd: string,
+/** Write a minimal Sparkling method package at an explicit location. */
+function createMethodModuleAt(
+  moduleDir: string,
   name: string,
   opts: {
     iosModuleName?: string;
@@ -70,7 +70,6 @@ function createMethodModule(
     methods?: string[];
   } = {},
 ): string {
-  const moduleDir = path.join(cwd, 'node_modules', name);
   fs.mkdirpSync(path.join(moduleDir, 'ios'));
   fs.mkdirpSync(path.join(moduleDir, 'android'));
 
@@ -110,6 +109,15 @@ function createMethodModule(
 
   fs.writeFileSync(path.join(moduleDir, 'module.config.json'), JSON.stringify(config, null, 2));
   return moduleDir;
+}
+
+/** Write a module.config.json inside a Sparkling method package in node_modules. */
+function createMethodModule(
+  cwd: string,
+  name: string,
+  opts: Parameters<typeof createMethodModuleAt>[2] = {},
+): string {
+  return createMethodModuleAt(path.join(cwd, 'node_modules', name), name, opts);
 }
 
 /** Scaffold the minimal iOS + Android project structure. */
@@ -156,6 +164,104 @@ describe('autolink', () => {
 
   afterEach(() => {
     fs.removeSync(cwd);
+  });
+
+  describe('declared dependency filtering', () => {
+    it('links only node_modules method packages declared by the application', async () => {
+      scaffoldProject(cwd);
+      createMethodModule(cwd, 'sparkling-storage');
+      createMethodModule(cwd, 'sparkling-media');
+      fs.writeJSONSync(path.join(cwd, 'package.json'), {
+        dependencies: {
+          'sparkling-storage': '1.0.0',
+        },
+      });
+
+      const modules = await autolink({ cwd, platform: 'android' });
+
+      expect(modules.map(module => module.name)).toEqual(['sparkling-storage']);
+      const settings = fs.readFileSync(path.join(cwd, 'android', 'settings.gradle.kts'), 'utf8');
+      expect(settings).toContain('sparkling-storage');
+      expect(settings).not.toContain('sparkling-media');
+    });
+
+    it('recognizes dependencies used for development and optional features', async () => {
+      scaffoldProject(cwd);
+      createMethodModule(cwd, 'sparkling-navigation');
+      createMethodModule(cwd, 'sparkling-storage');
+      createMethodModule(cwd, 'sparkling-media');
+      createMethodModule(cwd, 'sparkling-undeclared');
+      fs.writeJSONSync(path.join(cwd, 'package.json'), {
+        dependencies: {
+          'sparkling-navigation': '1.0.0',
+        },
+        devDependencies: {
+          'sparkling-storage': '1.0.0',
+        },
+        optionalDependencies: {
+          'sparkling-media': '1.0.0',
+        },
+      });
+
+      const modules = await autolink({ cwd, platform: 'android' });
+
+      expect(modules.map(module => module.name).sort()).toEqual([
+        'sparkling-media',
+        'sparkling-navigation',
+        'sparkling-storage',
+      ]);
+    });
+
+    it('does not link undeclared sibling method packages in a workspace', async () => {
+      const workspaceRoot = cwd;
+      const appDir = path.join(workspaceRoot, 'apps', 'demo');
+      scaffoldProject(appDir);
+      fs.writeFileSync(
+        path.join(workspaceRoot, 'pnpm-workspace.yaml'),
+        ['packages:', '  - "apps/*"', '  - "packages/methods/*"', ''].join('\n'),
+      );
+      createMethodModuleAt(
+        path.join(workspaceRoot, 'packages', 'methods', 'sparkling-storage'),
+        'sparkling-storage',
+      );
+      createMethodModuleAt(
+        path.join(workspaceRoot, 'packages', 'methods', 'sparkling-media'),
+        'sparkling-media',
+      );
+      fs.writeJSONSync(path.join(appDir, 'package.json'), {
+        dependencies: {
+          'sparkling-storage': 'workspace:*',
+        },
+      });
+
+      const modules = await autolink({ cwd: appDir, platform: 'android' });
+
+      expect(modules.map(module => module.name)).toEqual(['sparkling-storage']);
+      const settings = fs.readFileSync(
+        path.join(appDir, 'android', 'settings.gradle.kts'),
+        'utf8',
+      );
+      expect(settings).toContain('sparkling-storage');
+      expect(settings).not.toContain('sparkling-media');
+    });
+
+    it('keeps discovery-only behavior when package.json is malformed', async () => {
+      scaffoldProject(cwd);
+      createMethodModule(cwd, 'sparkling-navigation');
+      fs.writeFileSync(path.join(cwd, 'package.json'), '{ invalid json');
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      try {
+        const modules = await autolink({ cwd, platform: 'android' });
+
+        expect(modules.map(module => module.name)).toEqual(['sparkling-navigation']);
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining(
+          'Failed to read application dependencies',
+        ));
+      } finally {
+        warn.mockRestore();
+      }
+    });
   });
 
   // ── One module ──────────────────────────────────────────────────────────
